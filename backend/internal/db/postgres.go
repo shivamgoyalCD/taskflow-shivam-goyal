@@ -205,7 +205,9 @@ func resolveMigrationsDir() (string, error) {
 		"migrations",
 		filepath.Join("backend", "migrations"),
 		filepath.Join("..", "migrations"),
+		filepath.Join("..", "..", "migrations"),
 		filepath.Join("..", "backend", "migrations"),
+		filepath.Join("..", "..", "backend", "migrations"),
 	}
 
 	if executablePath, err := os.Executable(); err == nil {
@@ -242,7 +244,9 @@ func resolveSeedFile() (string, error) {
 		filepath.Join("seeds", "seed.sql"),
 		filepath.Join("backend", "seeds", "seed.sql"),
 		filepath.Join("..", "seeds", "seed.sql"),
+		filepath.Join("..", "..", "seeds", "seed.sql"),
 		filepath.Join("..", "backend", "seeds", "seed.sql"),
+		filepath.Join("..", "..", "backend", "seeds", "seed.sql"),
 	}
 
 	if executablePath, err := os.Executable(); err == nil {
