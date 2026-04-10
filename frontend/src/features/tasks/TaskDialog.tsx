@@ -11,6 +11,8 @@ import {
   MenuItem,
   Stack,
   TextField,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { taskFormSchema, type TaskFormValues } from "@/features/tasks/taskSchemas";
@@ -45,6 +47,8 @@ export function TaskDialog({
   onClose,
   onSubmit,
 }: TaskDialogProps) {
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const {
     control,
     handleSubmit,
@@ -82,11 +86,18 @@ export function TaskDialog({
   const isBusy = isSubmitting || isFormSubmitting;
 
   return (
-    <Dialog open={open} onClose={isBusy ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog
+      open={open}
+      onClose={isBusy ? undefined : onClose}
+      fullWidth
+      maxWidth="sm"
+      fullScreen={isSmallScreen}
+      scroll="paper"
+    >
       <DialogTitle>{title}</DialogTitle>
 
       <Stack component="form" onSubmit={handleSubmit(onSubmit)}>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: "hidden" }}>
           <Stack spacing={2.5}>
             {apiError ? <Alert severity="error">{apiError}</Alert> : null}
 
@@ -202,8 +213,21 @@ export function TaskDialog({
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} color="inherit" disabled={isBusy}>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            flexDirection: { xs: "column-reverse", sm: "row" },
+            alignItems: "stretch",
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={onClose}
+            color="inherit"
+            disabled={isBusy}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
+          >
             Cancel
           </Button>
           <Button
@@ -211,6 +235,7 @@ export function TaskDialog({
             variant="contained"
             disabled={isBusy}
             endIcon={isBusy ? <CircularProgress size={18} color="inherit" /> : null}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
           >
             {submitLabel}
           </Button>

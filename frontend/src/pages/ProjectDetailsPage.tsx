@@ -8,6 +8,7 @@ import {
   Chip,
   Divider,
   Grid2,
+  LinearProgress,
   MenuItem,
   Select,
   Snackbar,
@@ -21,9 +22,12 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AutorenewRoundedIcon from "@mui/icons-material/AutorenewRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
+import InboxRoundedIcon from "@mui/icons-material/InboxRounded";
+import FilterAltOffRoundedIcon from "@mui/icons-material/FilterAltOffRounded";
 import { useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import type { Task } from "@/api/tasks";
+import { EmptyStatePanel } from "@/components/EmptyStatePanel";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useProjectEvents } from "@/features/projects/useProjectEvents";
 import { useProjectDetailQuery, useProjectStatsQuery } from "@/features/projects/useProjectDetail";
@@ -339,15 +343,30 @@ export function ProjectDetailsPage() {
                 </Stack>
               </Stack>
 
+              {projectQuery.isFetching || statsQuery.isFetching ? <LinearProgress /> : null}
+
               <Divider />
 
               {project?.tasks.length === 0 ? (
-                <EmptyState
+                <EmptyStatePanel
+                  compact
+                  icon={<InboxRoundedIcon />}
                   title="No tasks yet"
                   description="This project does not have any tasks yet. Use the create task action to add the first item."
+                  action={
+                    <Button
+                      variant="contained"
+                      startIcon={<AddRoundedIcon />}
+                      onClick={() => setIsCreateDialogOpen(true)}
+                    >
+                      Create task
+                    </Button>
+                  }
                 />
               ) : filteredTasks.length === 0 ? (
-                <EmptyState
+                <EmptyStatePanel
+                  compact
+                  icon={<FilterAltOffRoundedIcon />}
                   title="No tasks match these filters"
                   description="Change the selected status or assignee filter to see more tasks."
                 />
@@ -516,17 +535,6 @@ function StatusSummaryCard({
         </Stack>
       </CardContent>
     </Card>
-  );
-}
-
-function EmptyState({ title, description }: { title: string; description: string }) {
-  return (
-    <Stack spacing={1.5} alignItems="center" sx={{ py: 6, textAlign: "center" }}>
-      <Typography variant="h6">{title}</Typography>
-      <Typography color="text.secondary" maxWidth={560}>
-        {description}
-      </Typography>
-    </Stack>
   );
 }
 

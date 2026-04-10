@@ -86,7 +86,7 @@ export function TaskBoard({
     >
       <Grid2 container spacing={3}>
         {boardStatuses.map((status) => (
-          <Grid2 key={status} size={{ xs: 12, xl: 4 }}>
+          <Grid2 key={status} size={{ xs: 12, lg: 4 }}>
             <StatusColumn status={status} count={tasksByStatus[status].length}>
               {tasksByStatus[status].map((task) => (
                 <DraggableTaskCard
@@ -105,14 +105,16 @@ export function TaskBoard({
 
       <DragOverlay>
         {activeTask ? (
-          <DraggableTaskCard
-            task={activeTask}
-            assigneeLabel={getAssigneeLabel(activeTask)}
-            isStatusUpdating={false}
-            overlay
-            onEdit={() => undefined}
-            onDelete={() => undefined}
-          />
+          <div style={{ width: "min(92vw, 340px)" }}>
+            <DraggableTaskCard
+              task={activeTask}
+              assigneeLabel={getAssigneeLabel(activeTask)}
+              isStatusUpdating={false}
+              overlay
+              onEdit={() => undefined}
+              onDelete={() => undefined}
+            />
+          </div>
         ) : null}
       </DragOverlay>
     </DndContext>

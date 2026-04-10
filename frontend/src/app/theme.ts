@@ -30,13 +30,16 @@ export function createAppTheme(mode: PaletteMode) {
       h3: {
         fontWeight: 700,
         letterSpacing: "-0.03em",
+        fontSize: "clamp(2rem, 5vw, 3rem)",
       },
       h4: {
         fontWeight: 700,
         letterSpacing: "-0.02em",
+        fontSize: "clamp(1.6rem, 4vw, 2.125rem)",
       },
       h5: {
         fontWeight: 700,
+        fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
       },
     },
     components: {

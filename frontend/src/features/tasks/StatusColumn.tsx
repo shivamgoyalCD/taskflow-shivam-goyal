@@ -41,14 +41,14 @@ export function StatusColumn({ status, count, children }: StatusColumnProps) {
           <Box
             ref={setNodeRef}
             sx={{
-              minHeight: 220,
+              minHeight: { xs: 180, sm: 220 },
               borderRadius: 3,
               border: `1px dashed ${isOver ? theme.palette.primary.main : theme.palette.divider}`,
               backgroundColor: isOver
                 ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.2 : 0.08)
                 : "transparent",
               transition: "background-color 160ms ease, border-color 160ms ease",
-              p: 1,
+              p: { xs: 0.75, sm: 1 },
             }}
           >
             {count > 0 ? (

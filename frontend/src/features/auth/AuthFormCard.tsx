@@ -85,7 +85,7 @@ export function AuthFormCard<TValues extends FieldValues>({
   }, [serverFieldErrors, setError]);
 
   return (
-    <Card sx={{ maxWidth: 520, mx: "auto", width: "100%" }}>
+    <Card sx={{ maxWidth: 520, mx: "auto", width: "100%", overflow: "hidden" }}>
       <CardContent sx={{ p: { xs: 3, md: 4 } }}>
         <Stack spacing={3}>
           <Box>
@@ -97,7 +97,7 @@ export function AuthFormCard<TValues extends FieldValues>({
 
           <Alert severity="info">
             {helperMessage ??
-              "Frontend scaffold only. Form validation is wired, but API submission is not implemented yet."}
+              "Complete the form and submit to continue."}
           </Alert>
 
           {apiError ? <Alert severity="error">{apiError}</Alert> : null}
@@ -106,6 +106,7 @@ export function AuthFormCard<TValues extends FieldValues>({
             component="form"
             spacing={2}
             noValidate
+            autoComplete="on"
             onSubmit={handleSubmit(async (values) => {
               clearErrors();
               await onSubmit(values);

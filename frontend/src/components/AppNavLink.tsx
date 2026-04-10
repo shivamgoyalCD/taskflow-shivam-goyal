@@ -8,21 +8,29 @@ type AppNavLinkProps = Omit<ButtonProps<typeof NavLink>, "to"> & {
 };
 
 export const AppNavLink = forwardRef<HTMLAnchorElement, AppNavLinkProps>(
-  function AppNavLink({ to, label, children, sx, ...props }, ref) {
+  function AppNavLink(
+    { to, label, children, sx, color = "inherit", variant, ...props },
+    ref,
+  ) {
     return (
       <Button
         ref={ref}
         component={NavLink}
         to={to}
-        color="inherit"
+        color={color}
+        variant={variant}
         sx={{
           borderRadius: 999,
           px: 1.5,
-          color: "text.secondary",
-          "&.active": {
-            backgroundColor: "rgba(15, 118, 110, 0.1)",
-            color: "primary.main",
-          },
+          ...(variant === "contained"
+            ? {}
+            : {
+                color: "text.secondary",
+                "&.active": {
+                  backgroundColor: "rgba(15, 118, 110, 0.1)",
+                  color: "primary.main",
+                },
+              }),
           ...sx,
         }}
         {...props}

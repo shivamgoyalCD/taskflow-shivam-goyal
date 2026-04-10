@@ -10,6 +10,8 @@ import {
   DialogTitle,
   Stack,
   TextField,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { ApiError } from "@/api/client";
@@ -30,6 +32,8 @@ export function CreateProjectDialog({
   onClose,
   onCreated,
 }: CreateProjectDialogProps) {
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const createProjectMutation = useCreateProjectMutation();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -90,11 +94,18 @@ export function CreateProjectDialog({
   const isBusy = isSubmitting || createProjectMutation.isPending;
 
   return (
-    <Dialog open={open} onClose={isBusy ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog
+      open={open}
+      onClose={isBusy ? undefined : onClose}
+      fullWidth
+      maxWidth="sm"
+      fullScreen={isSmallScreen}
+      scroll="paper"
+    >
       <DialogTitle>Create project</DialogTitle>
 
       <Stack component="form" onSubmit={handleSubmit(onSubmit)}>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: "hidden" }}>
           <Stack spacing={2.5}>
             <Alert severity="info">
               Add a new project and it will appear in the paginated list after creation.
@@ -135,8 +146,21 @@ export function CreateProjectDialog({
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} color="inherit" disabled={isBusy}>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            flexDirection: { xs: "column-reverse", sm: "row" },
+            alignItems: "stretch",
+            gap: 1,
+          }}
+        >
+          <Button
+            onClick={onClose}
+            color="inherit"
+            disabled={isBusy}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
+          >
             Cancel
           </Button>
           <Button
@@ -144,6 +168,7 @@ export function CreateProjectDialog({
             variant="contained"
             disabled={isBusy}
             endIcon={isBusy ? <CircularProgress size={18} color="inherit" /> : null}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
           >
             Create project
           </Button>

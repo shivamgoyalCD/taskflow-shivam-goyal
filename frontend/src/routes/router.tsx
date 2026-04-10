@@ -1,11 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { AppLayout } from "@/layouts/AppLayout";
-import { LoginPage } from "@/pages/LoginPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
-import { ProjectDetailsPage } from "@/pages/ProjectDetailsPage";
-import { ProjectsPage } from "@/pages/ProjectsPage";
-import { RegisterPage } from "@/pages/RegisterPage";
 
 export const router = createBrowserRouter([
   {
@@ -18,11 +13,17 @@ export const router = createBrowserRouter([
       },
       {
         path: "login",
-        element: <LoginPage />,
+        lazy: async () => {
+          const module = await import("@/pages/LoginPage");
+          return { Component: module.LoginPage };
+        },
       },
       {
         path: "register",
-        element: <RegisterPage />,
+        lazy: async () => {
+          const module = await import("@/pages/RegisterPage");
+          return { Component: module.RegisterPage };
+        },
       },
       {
         path: "projects",
@@ -30,17 +31,26 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <ProjectsPage />,
+            lazy: async () => {
+              const module = await import("@/pages/ProjectsPage");
+              return { Component: module.ProjectsPage };
+            },
           },
           {
             path: ":id",
-            element: <ProjectDetailsPage />,
+            lazy: async () => {
+              const module = await import("@/pages/ProjectDetailsPage");
+              return { Component: module.ProjectDetailsPage };
+            },
           },
         ],
       },
       {
         path: "*",
-        element: <NotFoundPage />,
+        lazy: async () => {
+          const module = await import("@/pages/NotFoundPage");
+          return { Component: module.NotFoundPage };
+        },
       },
     ],
   },

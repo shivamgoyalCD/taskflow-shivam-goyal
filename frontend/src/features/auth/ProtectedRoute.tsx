@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { Box, CircularProgress } from "@mui/material";
+import { RouteLoadingState } from "@/components/RouteLoadingState";
 import { useAuth } from "@/features/auth/AuthContext";
 
 export function ProtectedRoute() {
@@ -7,11 +7,7 @@ export function ProtectedRoute() {
   const { isAuthenticated, isHydrated } = useAuth();
 
   if (!isHydrated) {
-    return (
-      <Box sx={{ minHeight: "50vh", display: "grid", placeItems: "center" }}>
-        <CircularProgress color="primary" />
-      </Box>
-    );
+    return <RouteLoadingState />;
   }
 
   if (!isAuthenticated) {

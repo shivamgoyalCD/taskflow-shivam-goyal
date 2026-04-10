@@ -109,7 +109,6 @@ export function useProjectEvents(projectId: string, token: string | null) {
 
   return {
     liveStatus,
-    isLiveConnected: liveStatus === "connected",
   };
 }
 

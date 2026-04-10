@@ -11,6 +11,7 @@ import {
   Tooltip,
   Toolbar,
   Typography,
+  useMediaQuery,
   useTheme,
 } from "@mui/material";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
@@ -25,6 +26,7 @@ import { useThemeMode } from "@/app/ThemeModeProvider";
 export function AppLayout() {
   const navigate = useNavigate();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { mode, toggleMode } = useThemeMode();
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -49,8 +51,23 @@ export function AppLayout() {
         }}
       >
         <Container maxWidth="lg">
-          <Toolbar disableGutters sx={{ minHeight: 76 }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" flexGrow={1}>
+          <Toolbar
+            disableGutters
+            sx={{
+              minHeight: 76,
+              py: { xs: 1.5, sm: 0 },
+              flexWrap: "wrap",
+              rowGap: 1.5,
+              alignItems: "center",
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              flexGrow={1}
+              minWidth={0}
+            >
               <Box
                 sx={{
                   display: "grid",
@@ -68,13 +85,23 @@ export function AppLayout() {
                 <Typography variant="h6" fontWeight={700}>
                   Taskflow
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Assignment frontend scaffold
-                </Typography>
+                {!isMobile ? (
+                  <Typography variant="caption" color="text.secondary">
+                    Project and task workspace
+                  </Typography>
+                ) : null}
               </Box>
             </Stack>
 
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent={{ xs: "space-between", sm: "flex-end" }}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ width: { xs: "100%", sm: "auto" } }}
+            >
               <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
                 <IconButton
                   color="inherit"
@@ -93,9 +120,18 @@ export function AppLayout() {
 
               {isAuthenticated ? (
                 <>
-                  <AppNavLink to="/projects" label="Projects" />
-                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                  <Stack direction="row" spacing={1.25} alignItems="center" sx={{ pl: 0.5 }}>
+                  <AppNavLink to="/projects" label="Projects" size="small" />
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    sx={{ mx: 0.5, display: { xs: "none", sm: "block" } }}
+                  />
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    alignItems="center"
+                    sx={{ pl: { xs: 0, sm: 0.5 }, minWidth: 0 }}
+                  >
                     <Avatar
                       sx={{
                         width: 34,
@@ -107,7 +143,7 @@ export function AppLayout() {
                     >
                       {user?.name.slice(0, 1).toUpperCase() ?? "U"}
                     </Avatar>
-                    <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                    <Box sx={{ display: { xs: "none", md: "block" }, minWidth: 0 }}>
                       <Typography variant="body2" fontWeight={600}>
                         {user?.name ?? "User"}
                       </Typography>
@@ -115,27 +151,45 @@ export function AppLayout() {
                         {user?.email ?? "Signed in"}
                       </Typography>
                     </Box>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      startIcon={<LogoutRoundedIcon />}
-                      onClick={handleLogout}
-                    >
-                      Logout
-                    </Button>
+                    {isMobile ? (
+                      <Tooltip title="Logout">
+                        <IconButton
+                          color="inherit"
+                          onClick={handleLogout}
+                          sx={{
+                            border: `1px solid ${theme.palette.divider}`,
+                            backgroundColor:
+                              theme.palette.mode === "dark"
+                                ? "rgba(148, 163, 184, 0.08)"
+                                : "rgba(255, 255, 255, 0.72)",
+                          }}
+                        >
+                          <LogoutRoundedIcon />
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<LogoutRoundedIcon />}
+                        onClick={handleLogout}
+                      >
+                        Logout
+                      </Button>
+                    )}
                   </Stack>
                 </>
               ) : (
                 <>
-                  <AppNavLink to="/register" label="Register" />
-                  <Button
-                    component={AppNavLink}
+                  <AppNavLink to="/register" label="Register" size="small" />
+                  <AppNavLink
                     to="/login"
                     variant="contained"
+                    color="primary"
                     startIcon={<LoginRoundedIcon />}
-                  >
-                    Login
-                  </Button>
+                    label="Login"
+                    size="small"
+                  />
                 </>
               )}
             </Stack>

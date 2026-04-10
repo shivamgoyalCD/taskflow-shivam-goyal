@@ -7,6 +7,7 @@ import {
   Chip,
   CircularProgress,
   Grid2,
+  LinearProgress,
   MenuItem,
   Select,
   Stack,
@@ -18,8 +19,10 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import FolderOpenRoundedIcon from "@mui/icons-material/FolderOpenRounded";
 import { useMemo, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
+import { EmptyStatePanel } from "@/components/EmptyStatePanel";
 import { CreateProjectDialog } from "@/features/projects/CreateProjectDialog";
 import { useProjectsQuery } from "@/features/projects/useProjects";
 
@@ -114,6 +117,8 @@ export function ProjectsPage() {
         </Stack>
       </Stack>
 
+      {projectsQuery.isFetching && !projectsQuery.isLoading ? <LinearProgress /> : null}
+
       {projectsQuery.isLoading ? (
         <Card>
           <CardContent sx={{ py: 8 }}>
@@ -146,21 +151,21 @@ export function ProjectsPage() {
 
       {!projectsQuery.isLoading && !projectsQuery.isError && !hasProjects ? (
         <Card>
-          <CardContent sx={{ py: 8 }}>
-            <Stack spacing={2} alignItems="center" textAlign="center">
-              <Typography variant="h5">No projects yet</Typography>
-              <Typography color="text.secondary" maxWidth={560}>
-                Create your first project to start organizing tasks, members, and status
-                updates.
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => setIsCreateDialogOpen(true)}
-              >
-                Create project
-              </Button>
-            </Stack>
+          <CardContent sx={{ py: { xs: 4, sm: 5 } }}>
+            <EmptyStatePanel
+              icon={<FolderOpenRoundedIcon />}
+              title="No projects yet"
+              description="Create your first project to start organizing tasks, members, and status updates."
+              action={
+                <Button
+                  variant="contained"
+                  startIcon={<AddRoundedIcon />}
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  Create project
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       ) : null}
@@ -195,14 +200,14 @@ export function ProjectsPage() {
                     >
                       <Stack spacing={0.5}>
                         <Typography variant="h5">{project.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                           Created {new Date(project.created_at).toLocaleDateString()}
                         </Typography>
                       </Stack>
                       <Chip color="primary" label="Project" />
                     </Stack>
 
-                    <Typography color="text.secondary">
+                    <Typography color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                       {project.description?.trim()
                         ? project.description
                         : "No description added yet."}

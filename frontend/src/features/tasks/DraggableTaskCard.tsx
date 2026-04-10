@@ -42,6 +42,7 @@ export function DraggableTaskCard({
       ref={setNodeRef}
       variant="outlined"
       sx={{
+        width: "100%",
         borderRadius: 3,
         opacity: isDragging && !overlay ? 0.4 : 1,
         transform: transform ? CSS.Translate.toString(transform) : undefined,
@@ -52,8 +53,10 @@ export function DraggableTaskCard({
       <CardContent sx={{ p: 2 }}>
         <Stack spacing={1.5}>
           <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-            <Box>
-              <Typography fontWeight={700}>{task.title}</Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+                {task.title}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
                 Updated {new Date(task.updated_at).toLocaleDateString()}
               </Typography>
@@ -66,12 +69,12 @@ export function DraggableTaskCard({
             />
           </Stack>
 
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
             {task.description?.trim() ? task.description : "No task description provided."}
           </Typography>
 
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip size="small" variant="outlined" label={assigneeLabel} />
+            <Chip size="small" variant="outlined" label={assigneeLabel} sx={{ maxWidth: "100%" }} />
             <Chip
               size="small"
               variant="outlined"
@@ -80,6 +83,7 @@ export function DraggableTaskCard({
                   ? `Due ${new Date(task.due_date).toLocaleDateString()}`
                   : "No due date"
               }
+              sx={{ maxWidth: "100%" }}
             />
           </Stack>
 
