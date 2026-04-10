@@ -145,6 +145,41 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
+	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
+	if !ok {
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_projects_stats_unauthorized_response_failed", "error", err)
+		}
+		return
+	}
+
+	projectID := chi.URLParam(r, "id")
+	stats, err := h.service.GetStats(r.Context(), currentUserID, projectID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrProjectNotFound):
+			if writeErr := response.NotFound(w, "project not found"); writeErr != nil {
+				h.logger.Error("http_projects_stats_not_found_response_failed", "error", writeErr)
+			}
+		case errors.Is(err, ErrForbidden):
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_projects_stats_forbidden_response_failed", "error", writeErr)
+			}
+		default:
+			h.logger.Error("http_projects_stats_failed", "error", err)
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_projects_stats_error_response_failed", "error", writeErr)
+			}
+		}
+		return
+	}
+
+	if err := response.OK(w, stats); err != nil {
+		h.logger.Error("http_projects_stats_response_failed", "error", err)
+	}
+}
+
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {

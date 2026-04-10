@@ -34,6 +34,18 @@ type Task struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type StatusCounts struct {
+	Todo       int `json:"todo"`
+	InProgress int `json:"in_progress"`
+	Done       int `json:"done"`
+}
+
+type AssigneeTaskCount struct {
+	AssigneeID   *string `json:"assignee_id"`
+	AssigneeName *string `json:"assignee_name"`
+	Count        int     `json:"count"`
+}
+
 type CreateProjectParams struct {
 	ID          string
 	Name        string
@@ -53,6 +65,8 @@ type Repository interface {
 	GetByID(ctx context.Context, projectID string) (Project, error)
 	UserHasTaskAccess(ctx context.Context, projectID string, userID string) (bool, error)
 	ListTasksByProjectID(ctx context.Context, projectID string) ([]Task, error)
+	GetTaskStatusCounts(ctx context.Context, projectID string) (StatusCounts, error)
+	ListTaskCountsByAssignee(ctx context.Context, projectID string) ([]AssigneeTaskCount, error)
 	Update(ctx context.Context, params UpdateProjectParams) (Project, error)
 	Delete(ctx context.Context, projectID string) error
 }
@@ -239,6 +253,64 @@ func (r *PostgresRepository) ListTasksByProjectID(ctx context.Context, projectID
 	}
 
 	return tasks, nil
+}
+
+func (r *PostgresRepository) GetTaskStatusCounts(ctx context.Context, projectID string) (StatusCounts, error) {
+	const query = `
+		SELECT
+			CAST(COUNT(*) FILTER (WHERE status = 'todo') AS INTEGER) AS todo_count,
+			CAST(COUNT(*) FILTER (WHERE status = 'in_progress') AS INTEGER) AS in_progress_count,
+			CAST(COUNT(*) FILTER (WHERE status = 'done') AS INTEGER) AS done_count
+		FROM tasks
+		WHERE project_id = $1
+	`
+
+	var counts StatusCounts
+	if err := r.pool.QueryRow(ctx, query, projectID).Scan(
+		&counts.Todo,
+		&counts.InProgress,
+		&counts.Done,
+	); err != nil {
+		return StatusCounts{}, fmt.Errorf("get task status counts: %w", err)
+	}
+
+	return counts, nil
+}
+
+func (r *PostgresRepository) ListTaskCountsByAssignee(ctx context.Context, projectID string) ([]AssigneeTaskCount, error) {
+	const query = `
+		SELECT
+			t.assignee_id,
+			u.name,
+			CAST(COUNT(*) AS INTEGER) AS task_count
+		FROM tasks t
+		LEFT JOIN users u ON u.id = t.assignee_id
+		WHERE t.project_id = $1
+		GROUP BY t.assignee_id, u.name
+		ORDER BY task_count DESC, u.name ASC NULLS LAST, t.assignee_id ASC NULLS LAST
+	`
+
+	rows, err := r.pool.Query(ctx, query, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("list task counts by assignee: %w", err)
+	}
+	defer rows.Close()
+
+	var counts []AssigneeTaskCount
+	for rows.Next() {
+		var count AssigneeTaskCount
+		if err := rows.Scan(&count.AssigneeID, &count.AssigneeName, &count.Count); err != nil {
+			return nil, fmt.Errorf("scan assignee task count row: %w", err)
+		}
+
+		counts = append(counts, count)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate assignee task count rows: %w", err)
+	}
+
+	return counts, nil
 }
 
 func (r *PostgresRepository) Update(ctx context.Context, params UpdateProjectParams) (Project, error) {

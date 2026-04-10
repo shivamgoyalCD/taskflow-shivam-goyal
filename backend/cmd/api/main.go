@@ -166,6 +166,7 @@ func newRouter(app *application) http.Handler {
 		r.Get("/projects", app.projectsHandler.List)
 		r.Post("/projects", app.projectsHandler.Create)
 		r.Get("/projects/{id}", app.projectsHandler.GetByID)
+		r.Get("/projects/{id}/stats", app.projectsHandler.GetStats)
 		r.Patch("/projects/{id}", app.projectsHandler.Update)
 		r.Delete("/projects/{id}", app.projectsHandler.Delete)
 		r.Get("/projects/{id}/tasks", app.tasksHandler.ListByProject)
