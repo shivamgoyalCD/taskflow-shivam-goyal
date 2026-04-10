@@ -14,6 +14,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"taskflow-shivam-goyal/backend/internal/auth"
 	"taskflow-shivam-goyal/backend/internal/config"
 	"taskflow-shivam-goyal/backend/internal/db"
 	appmiddleware "taskflow-shivam-goyal/backend/internal/middleware"
@@ -21,8 +22,9 @@ import (
 )
 
 type application struct {
-	logger *slog.Logger
-	db     *pgxpool.Pool
+	logger      *slog.Logger
+	db          *pgxpool.Pool
+	authHandler *auth.Handler
 }
 
 type healthResponse struct {
@@ -60,9 +62,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	authRepository := auth.NewRepository(pool)
+	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Expiry)
+	authService := auth.NewService(authRepository, jwtManager)
+	authHandler := auth.NewHandler(logger, authService)
+
 	app := &application{
-		logger: logger,
-		db:     pool,
+		logger:      logger,
+		db:          pool,
+		authHandler: authHandler,
 	}
 
 	router := newRouter(app)
@@ -131,6 +139,11 @@ func newRouter(app *application) http.Handler {
 		if err := response.JSON(w, http.StatusOK, healthResponse{Status: "ok"}); err != nil {
 			app.logger.Error("http_health_response_failed", "error", err)
 		}
+	})
+
+	router.Route("/auth", func(r chi.Router) {
+		r.Post("/register", app.authHandler.Register)
+		r.Post("/login", app.authHandler.Login)
 	})
 
 	// Temporary local debugging route. Remove before final submission.
