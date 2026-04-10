@@ -138,13 +138,13 @@ func newRouter(app *application) http.Handler {
 	router.Use(appmiddleware.Recoverer(app.logger))
 
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		if err := response.Error(w, http.StatusNotFound, "resource not found"); err != nil {
+		if err := response.NotFound(w, "resource not found"); err != nil {
 			app.logger.Error("http_not_found_response_failed", "error", err)
 		}
 	})
 
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		if err := response.Error(w, http.StatusMethodNotAllowed, "method not allowed"); err != nil {
+		if err := response.MethodNotAllowed(w); err != nil {
 			app.logger.Error("http_method_not_allowed_response_failed", "error", err)
 		}
 	})
@@ -158,7 +158,7 @@ func newRouter(app *application) http.Handler {
 		r.Use(appmiddleware.Authenticate(app.logger, app.jwtManager))
 
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			if err := response.JSON(w, http.StatusOK, healthResponse{Status: "ok"}); err != nil {
+			if err := response.OK(w, healthResponse{Status: "ok"}); err != nil {
 				app.logger.Error("http_health_response_failed", "error", err)
 			}
 		})
@@ -184,13 +184,13 @@ func (app *application) handleSeedCheck(w http.ResponseWriter, r *http.Request) 
 	counts, err := db.CountCoreTables(r.Context(), app.db)
 	if err != nil {
 		app.logger.Error("http_seed_check_failed", "error", err)
-		if writeErr := response.Error(w, http.StatusInternalServerError, "failed to fetch seed counts"); writeErr != nil {
+		if writeErr := response.InternalServerError(w); writeErr != nil {
 			app.logger.Error("http_seed_check_error_response_failed", "error", writeErr)
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, counts); err != nil {
+	if err := response.OK(w, counts); err != nil {
 		app.logger.Error("http_seed_check_response_failed", "error", err)
 	}
 }

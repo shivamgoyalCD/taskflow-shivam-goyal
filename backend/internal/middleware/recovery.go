@@ -24,7 +24,7 @@ func Recoverer(logger *slog.Logger) func(http.Handler) http.Handler {
 						"stack_trace", string(debug.Stack()),
 					)
 
-					if err := response.Error(w, http.StatusInternalServerError, "internal server error"); err != nil {
+					if err := response.InternalServerError(w); err != nil {
 						logger.Error("http_recovery_response_failed", "error", err)
 					}
 				}

@@ -16,11 +16,6 @@ type Handler struct {
 	service *Service
 }
 
-type validationErrorResponse struct {
-	Error  string            `json:"error"`
-	Fields map[string]string `json:"fields"`
-}
-
 type registerRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
@@ -42,13 +37,17 @@ func NewHandler(logger *slog.Logger, service *Service) *Handler {
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := decodeJSONBody(r.Body, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		if writeErr := response.BadRequest(w, "invalid request body"); writeErr != nil {
+			h.logger.Error("http_auth_register_bad_request_response_failed", "error", writeErr)
+		}
 		return
 	}
 
 	validationErrors := validation.ValidateRegisterAuth(req.Name, req.Email, req.Password)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if writeErr := response.ValidationError(w, validationErrors); writeErr != nil {
+			h.logger.Error("http_auth_register_validation_response_failed", "error", writeErr)
+		}
 		return
 	}
 
@@ -60,15 +59,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrEmailAlreadyExists):
-			h.writeError(w, http.StatusConflict, "email already exists")
+			if writeErr := response.Conflict(w, "email already exists"); writeErr != nil {
+				h.logger.Error("http_auth_register_conflict_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_auth_register_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_auth_register_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusCreated, authResponse); err != nil {
+	if err := response.Created(w, authResponse); err != nil {
 		h.logger.Error("http_auth_register_response_failed", "error", err)
 	}
 }
@@ -76,13 +79,17 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := decodeJSONBody(r.Body, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		if writeErr := response.BadRequest(w, "invalid request body"); writeErr != nil {
+			h.logger.Error("http_auth_login_bad_request_response_failed", "error", writeErr)
+		}
 		return
 	}
 
 	validationErrors := validation.ValidateLoginAuth(req.Email, req.Password)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if writeErr := response.ValidationError(w, validationErrors); writeErr != nil {
+			h.logger.Error("http_auth_login_validation_response_failed", "error", writeErr)
+		}
 		return
 	}
 
@@ -93,31 +100,20 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidCredentials):
-			h.writeError(w, http.StatusUnauthorized, "invalid credentials")
+			if writeErr := response.Error(w, http.StatusUnauthorized, "invalid credentials"); writeErr != nil {
+				h.logger.Error("http_auth_login_unauthorized_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_auth_login_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_auth_login_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, authResponse); err != nil {
+	if err := response.OK(w, authResponse); err != nil {
 		h.logger.Error("http_auth_login_response_failed", "error", err)
-	}
-}
-
-func (h *Handler) writeValidationError(w http.ResponseWriter, validationErrors validation.Errors) {
-	if err := response.JSON(w, http.StatusBadRequest, validationErrorResponse{
-		Error:  "validation failed",
-		Fields: validationErrors,
-	}); err != nil {
-		h.logger.Error("http_validation_response_failed", "error", err)
-	}
-}
-
-func (h *Handler) writeError(w http.ResponseWriter, status int, message string) {
-	if err := response.Error(w, status, message); err != nil {
-		h.logger.Error("http_auth_error_response_failed", "error", err)
 	}
 }
 

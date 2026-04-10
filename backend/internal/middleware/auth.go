@@ -93,7 +93,7 @@ func bearerToken(headerValue string) (string, error) {
 func writeUnauthorized(logger *slog.Logger, w http.ResponseWriter, reason string, err error) {
 	logger.Warn("http_auth_unauthorized", "reason", reason, "error", err)
 
-	if writeErr := response.Error(w, http.StatusUnauthorized, "unauthorized"); writeErr != nil {
+	if writeErr := response.Unauthorized(w); writeErr != nil {
 		logger.Error("http_auth_unauthorized_response_failed", "error", writeErr)
 	}
 }

@@ -19,11 +19,6 @@ type Handler struct {
 	service *Service
 }
 
-type validationErrorResponse struct {
-	Error  string            `json:"error"`
-	Fields map[string]string `json:"fields"`
-}
-
 type createTaskRequest struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
@@ -62,10 +57,6 @@ type updateTaskRequest struct {
 	DueDate     optionalString `json:"due_date"`
 }
 
-type deleteTaskResponse struct {
-	Message string `json:"message"`
-}
-
 func NewHandler(logger *slog.Logger, service *Service) *Handler {
 	return &Handler{
 		logger:  logger,
@@ -76,7 +67,9 @@ func NewHandler(logger *slog.Logger, service *Service) *Handler {
 func (h *Handler) ListByProject(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_tasks_list_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -88,7 +81,9 @@ func (h *Handler) ListByProject(w http.ResponseWriter, r *http.Request) {
 
 	projectID, statusPtr, assigneePtr, pageValue, limitValue, validationErrors := validation.ValidateTaskListInputs(projectID, status, assignee, page, limit)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_tasks_list_validation_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -103,17 +98,23 @@ func (h *Handler) ListByProject(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			h.writeError(w, http.StatusNotFound, "project not found")
+			if writeErr := response.NotFound(w, "project not found"); writeErr != nil {
+				h.logger.Error("http_tasks_list_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_tasks_list_forbidden_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_tasks_list_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_tasks_list_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, result); err != nil {
+	if err := response.OK(w, result); err != nil {
 		h.logger.Error("http_tasks_list_response_failed", "error", err)
 	}
 }
@@ -121,20 +122,26 @@ func (h *Handler) ListByProject(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_tasks_create_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
 	projectID := chi.URLParam(r, "id")
 	var req createTaskRequest
 	if err := decodeJSONBody(r.Body, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		if writeErr := response.BadRequest(w, "invalid request body"); writeErr != nil {
+			h.logger.Error("http_tasks_create_bad_request_response_failed", "error", writeErr)
+		}
 		return
 	}
 
 	projectID, assigneeID, dueDate, validationErrors := validation.ValidateCreateTaskInput(projectID, req.Title, req.AssigneeID, req.DueDate)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_tasks_create_validation_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -149,19 +156,27 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			h.writeError(w, http.StatusNotFound, "project not found")
+			if writeErr := response.NotFound(w, "project not found"); writeErr != nil {
+				h.logger.Error("http_tasks_create_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_tasks_create_forbidden_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrAssigneeNotFound):
-			h.writeValidationError(w, validation.Errors{"assignee_id": "assignee_id must reference an existing user"})
+			if writeErr := response.ValidationError(w, validation.Errors{"assignee_id": "assignee_id must reference an existing user"}); writeErr != nil {
+				h.logger.Error("http_tasks_create_assignee_validation_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_tasks_create_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_tasks_create_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusCreated, task); err != nil {
+	if err := response.Created(w, task); err != nil {
 		h.logger.Error("http_tasks_create_response_failed", "error", err)
 	}
 }
@@ -169,14 +184,18 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_tasks_update_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
 	taskID := chi.URLParam(r, "id")
 	var req updateTaskRequest
 	if err := decodeJSONBody(r.Body, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		if writeErr := response.BadRequest(w, "invalid request body"); writeErr != nil {
+			h.logger.Error("http_tasks_update_bad_request_response_failed", "error", writeErr)
+		}
 		return
 	}
 
@@ -190,7 +209,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		req.DueDate.Set, req.DueDate.Value,
 	)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_tasks_update_validation_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -207,19 +228,27 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrTaskNotFound):
-			h.writeError(w, http.StatusNotFound, "task not found")
+			if writeErr := response.NotFound(w, "task not found"); writeErr != nil {
+				h.logger.Error("http_tasks_update_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_tasks_update_forbidden_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrAssigneeNotFound):
-			h.writeValidationError(w, validation.Errors{"assignee_id": "assignee_id must reference an existing user"})
+			if writeErr := response.ValidationError(w, validation.Errors{"assignee_id": "assignee_id must reference an existing user"}); writeErr != nil {
+				h.logger.Error("http_tasks_update_assignee_validation_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_tasks_update_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_tasks_update_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, task); err != nil {
+	if err := response.OK(w, task); err != nil {
 		h.logger.Error("http_tasks_update_response_failed", "error", err)
 	}
 }
@@ -227,51 +256,42 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_tasks_delete_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
 	taskID, validationErrors := validation.ValidateTaskID(chi.URLParam(r, "id"))
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_tasks_delete_validation_response_failed", "error", err)
+		}
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), currentUserID, taskID); err != nil {
 		switch {
 		case errors.Is(err, ErrTaskNotFound):
-			h.writeError(w, http.StatusNotFound, "task not found")
+			if writeErr := response.NotFound(w, "task not found"); writeErr != nil {
+				h.logger.Error("http_tasks_delete_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_tasks_delete_forbidden_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_tasks_delete_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_tasks_delete_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, deleteTaskResponse{Message: "task deleted"}); err != nil {
+	if err := response.OK(w, response.MessageBody{Message: "task deleted"}); err != nil {
 		h.logger.Error("http_tasks_delete_response_failed", "error", err)
 	}
-}
-
-func (h *Handler) writeValidationError(w http.ResponseWriter, validationErrors validation.Errors) {
-	if err := response.JSON(w, http.StatusBadRequest, validationErrorResponse{
-		Error:  "validation failed",
-		Fields: validationErrors,
-	}); err != nil {
-		h.logger.Error("http_tasks_validation_response_failed", "error", err)
-	}
-}
-
-func (h *Handler) writeError(w http.ResponseWriter, status int, message string) {
-	if err := response.Error(w, status, message); err != nil {
-		h.logger.Error("http_tasks_error_response_failed", "error", err)
-	}
-}
-
-func (h *Handler) writeUnauthorized(w http.ResponseWriter) {
-	h.writeError(w, http.StatusUnauthorized, "unauthorized")
 }
 
 func decodeJSONBody(body io.ReadCloser, destination any) error {

@@ -19,11 +19,6 @@ type Handler struct {
 	service *Service
 }
 
-type validationErrorResponse struct {
-	Error  string            `json:"error"`
-	Fields map[string]string `json:"fields"`
-}
-
 type createProjectRequest struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
@@ -32,10 +27,6 @@ type createProjectRequest struct {
 type updateProjectRequest struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
-}
-
-type deleteProjectResponse struct {
-	Message string `json:"message"`
 }
 
 func NewHandler(logger *slog.Logger, service *Service) *Handler {
@@ -48,24 +39,30 @@ func NewHandler(logger *slog.Logger, service *Service) *Handler {
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_projects_list_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
 	page, limit, validationErrors := validation.ValidateProjectPagination(r.URL.Query().Get("page"), r.URL.Query().Get("limit"))
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_projects_list_validation_response_failed", "error", err)
+		}
 		return
 	}
 
 	result, err := h.service.List(r.Context(), currentUserID, page, limit)
 	if err != nil {
 		h.logger.Error("http_projects_list_failed", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "internal server error")
+		if writeErr := response.InternalServerError(w); writeErr != nil {
+			h.logger.Error("http_projects_list_error_response_failed", "error", writeErr)
+		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, result); err != nil {
+	if err := response.OK(w, result); err != nil {
 		h.logger.Error("http_projects_list_response_failed", "error", err)
 	}
 }
@@ -73,19 +70,25 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_projects_create_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
 	var req createProjectRequest
 	if err := decodeJSONBody(r.Body, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		if writeErr := response.BadRequest(w, "invalid request body"); writeErr != nil {
+			h.logger.Error("http_projects_create_bad_request_response_failed", "error", writeErr)
+		}
 		return
 	}
 
 	validationErrors := validation.ValidateCreateProject(req.Name)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_projects_create_validation_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -96,11 +99,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		h.logger.Error("http_projects_create_failed", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "internal server error")
+		if writeErr := response.InternalServerError(w); writeErr != nil {
+			h.logger.Error("http_projects_create_error_response_failed", "error", writeErr)
+		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusCreated, project); err != nil {
+	if err := response.Created(w, project); err != nil {
 		h.logger.Error("http_projects_create_response_failed", "error", err)
 	}
 }
@@ -108,7 +113,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_projects_get_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -117,17 +124,23 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			h.writeError(w, http.StatusNotFound, "project not found")
+			if writeErr := response.NotFound(w, "project not found"); writeErr != nil {
+				h.logger.Error("http_projects_get_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_projects_get_forbidden_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_projects_get_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_projects_get_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, project); err != nil {
+	if err := response.OK(w, project); err != nil {
 		h.logger.Error("http_projects_get_response_failed", "error", err)
 	}
 }
@@ -135,20 +148,26 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_projects_update_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
 	projectID := chi.URLParam(r, "id")
 	var req updateProjectRequest
 	if err := decodeJSONBody(r.Body, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		if writeErr := response.BadRequest(w, "invalid request body"); writeErr != nil {
+			h.logger.Error("http_projects_update_bad_request_response_failed", "error", writeErr)
+		}
 		return
 	}
 
 	validationErrors := validation.ValidateUpdateProject(req.Name, req.Description)
 	if validationErrors.HasAny() {
-		h.writeValidationError(w, validationErrors)
+		if err := response.ValidationError(w, validationErrors); err != nil {
+			h.logger.Error("http_projects_update_validation_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -161,17 +180,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			h.writeError(w, http.StatusNotFound, "project not found")
+			if writeErr := response.NotFound(w, "project not found"); writeErr != nil {
+				h.logger.Error("http_projects_update_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_projects_update_forbidden_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_projects_update_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_projects_update_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, project); err != nil {
+	if err := response.OK(w, project); err != nil {
 		h.logger.Error("http_projects_update_response_failed", "error", err)
 	}
 }
@@ -179,7 +204,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	currentUserID, ok := middleware.CurrentUserIDFromContext(r.Context())
 	if !ok {
-		h.writeUnauthorized(w)
+		if err := response.Unauthorized(w); err != nil {
+			h.logger.Error("http_projects_delete_unauthorized_response_failed", "error", err)
+		}
 		return
 	}
 
@@ -187,38 +214,25 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.service.Delete(r.Context(), currentUserID, projectID); err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			h.writeError(w, http.StatusNotFound, "project not found")
+			if writeErr := response.NotFound(w, "project not found"); writeErr != nil {
+				h.logger.Error("http_projects_delete_not_found_response_failed", "error", writeErr)
+			}
 		case errors.Is(err, ErrForbidden):
-			h.writeError(w, http.StatusForbidden, "forbidden")
+			if writeErr := response.Forbidden(w); writeErr != nil {
+				h.logger.Error("http_projects_delete_forbidden_response_failed", "error", writeErr)
+			}
 		default:
 			h.logger.Error("http_projects_delete_failed", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "internal server error")
+			if writeErr := response.InternalServerError(w); writeErr != nil {
+				h.logger.Error("http_projects_delete_error_response_failed", "error", writeErr)
+			}
 		}
 		return
 	}
 
-	if err := response.JSON(w, http.StatusOK, deleteProjectResponse{Message: "project deleted"}); err != nil {
+	if err := response.OK(w, response.MessageBody{Message: "project deleted"}); err != nil {
 		h.logger.Error("http_projects_delete_response_failed", "error", err)
 	}
-}
-
-func (h *Handler) writeValidationError(w http.ResponseWriter, validationErrors validation.Errors) {
-	if err := response.JSON(w, http.StatusBadRequest, validationErrorResponse{
-		Error:  "validation failed",
-		Fields: validationErrors,
-	}); err != nil {
-		h.logger.Error("http_projects_validation_response_failed", "error", err)
-	}
-}
-
-func (h *Handler) writeError(w http.ResponseWriter, status int, message string) {
-	if err := response.Error(w, status, message); err != nil {
-		h.logger.Error("http_projects_error_response_failed", "error", err)
-	}
-}
-
-func (h *Handler) writeUnauthorized(w http.ResponseWriter) {
-	h.writeError(w, http.StatusUnauthorized, "unauthorized")
 }
 
 func decodeJSONBody(body io.ReadCloser, destination any) error {
