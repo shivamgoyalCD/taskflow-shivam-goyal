@@ -1,14 +1,14 @@
 import { useMutation } from "@tanstack/react-query";
-import { loginRequest, registerRequest } from "@/features/auth/authApi";
+import { login, register } from "@/api/auth";
 
 export function useLoginMutation() {
   return useMutation({
-    mutationFn: loginRequest,
+    mutationFn: login,
   });
 }
 
 export function useRegisterMutation() {
   return useMutation({
-    mutationFn: registerRequest,
+    mutationFn: register,
   });
 }

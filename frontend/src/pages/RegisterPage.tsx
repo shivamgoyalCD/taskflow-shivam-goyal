@@ -3,7 +3,7 @@ import { useState } from "react";
 import { AuthFormCard } from "@/features/auth/AuthFormCard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { type RegisterFormValues, registerSchema } from "@/features/auth/authSchemas";
-import { ApiError } from "@/api/http";
+import { ApiError } from "@/api/client";
 import { useRegisterMutation } from "@/features/auth/useAuthMutations";
 
 export function RegisterPage() {
