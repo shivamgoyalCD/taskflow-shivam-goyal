@@ -10,12 +10,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"net/url"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -53,6 +53,18 @@ type projectResponse struct {
 	OwnerID     string  `json:"owner_id"`
 }
 
+type projectListResponse struct {
+	Projects []projectResponse `json:"projects"`
+}
+
+type projectDetailResponse struct {
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description *string        `json:"description"`
+	OwnerID     string         `json:"owner_id"`
+	Tasks       []taskResponse `json:"tasks"`
+}
+
 type taskResponse struct {
 	ID          string  `json:"id"`
 	Title       string  `json:"title"`
@@ -67,6 +79,16 @@ type taskResponse struct {
 
 type errorResponse struct {
 	Error string `json:"error"`
+}
+
+type userResponse struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type userListResponse struct {
+	Users []userResponse `json:"users"`
 }
 
 func TestMain(m *testing.M) {
@@ -368,37 +390,173 @@ func TestIntegrationCreateAndUpdateTaskFlow(t *testing.T) {
 	}
 }
 
+func TestIntegrationAssignedUserAccessAndDeleteRules(t *testing.T) {
+	suite := requireSuite(t)
+	suite.ResetDatabase(t)
+
+	ownerRegisterResponse := suite.DoJSON(t, http.MethodPost, "/auth/register", "", map[string]any{
+		"name":     "Project Owner",
+		"email":    uniqueEmail(t, "owner"),
+		"password": "password123",
+	})
+	assertStatus(t, ownerRegisterResponse, http.StatusCreated)
+
+	var owner authResponse
+	decodeJSONResponse(t, ownerRegisterResponse, &owner)
+
+	assigneeRegisterResponse := suite.DoJSON(t, http.MethodPost, "/auth/register", "", map[string]any{
+		"name":     "Assigned User",
+		"email":    uniqueEmail(t, "assignee"),
+		"password": "password123",
+	})
+	assertStatus(t, assigneeRegisterResponse, http.StatusCreated)
+
+	var assignee authResponse
+	decodeJSONResponse(t, assigneeRegisterResponse, &assignee)
+
+	outsiderRegisterResponse := suite.DoJSON(t, http.MethodPost, "/auth/register", "", map[string]any{
+		"name":     "Outside User",
+		"email":    uniqueEmail(t, "outsider"),
+		"password": "password123",
+	})
+	assertStatus(t, outsiderRegisterResponse, http.StatusCreated)
+
+	var outsider authResponse
+	decodeJSONResponse(t, outsiderRegisterResponse, &outsider)
+
+	listUsersResponse := suite.DoJSON(t, http.MethodGet, "/users", owner.Token, nil)
+	assertStatus(t, listUsersResponse, http.StatusOK)
+
+	var listedUsers userListResponse
+	decodeJSONResponse(t, listUsersResponse, &listedUsers)
+
+	assigneeWasListed := false
+	for _, listedUser := range listedUsers.Users {
+		if listedUser.ID == assignee.User.ID {
+			assigneeWasListed = true
+			break
+		}
+	}
+	if !assigneeWasListed {
+		t.Fatalf("expected /users response to include assignee user %q", assignee.User.ID)
+	}
+
+	projectCreateResponse := suite.DoJSON(t, http.MethodPost, "/projects", owner.Token, map[string]any{
+		"name":        "Shared Project",
+		"description": "Project shared through assignment",
+	})
+	assertStatus(t, projectCreateResponse, http.StatusCreated)
+
+	var project projectResponse
+	decodeJSONResponse(t, projectCreateResponse, &project)
+
+	taskCreateResponse := suite.DoJSON(t, http.MethodPost, "/projects/"+project.ID+"/tasks", owner.Token, map[string]any{
+		"title":       "Assigned Task",
+		"description": "Visible to the assignee",
+		"assignee_id": assignee.User.ID,
+	})
+	assertStatus(t, taskCreateResponse, http.StatusCreated)
+
+	var assignedTask taskResponse
+	decodeJSONResponse(t, taskCreateResponse, &assignedTask)
+
+	if assignedTask.AssigneeID == nil || *assignedTask.AssigneeID != assignee.User.ID {
+		t.Fatalf("expected task assignee id %q, got %#v", assignee.User.ID, assignedTask.AssigneeID)
+	}
+
+	assigneeProjectsResponse := suite.DoJSON(t, http.MethodGet, "/projects", assignee.Token, nil)
+	assertStatus(t, assigneeProjectsResponse, http.StatusOK)
+
+	var assigneeProjects projectListResponse
+	decodeJSONResponse(t, assigneeProjectsResponse, &assigneeProjects)
+
+	projectWasListed := false
+	for _, accessibleProject := range assigneeProjects.Projects {
+		if accessibleProject.ID == project.ID {
+			projectWasListed = true
+			break
+		}
+	}
+	if !projectWasListed {
+		t.Fatalf("expected assignee project list to include project %q", project.ID)
+	}
+
+	assigneeProjectResponse := suite.DoJSON(t, http.MethodGet, "/projects/"+project.ID, assignee.Token, nil)
+	assertStatus(t, assigneeProjectResponse, http.StatusOK)
+
+	var assigneeProject projectDetailResponse
+	decodeJSONResponse(t, assigneeProjectResponse, &assigneeProject)
+
+	if assigneeProject.ID != project.ID {
+		t.Fatalf("expected assignee project detail id %q, got %q", project.ID, assigneeProject.ID)
+	}
+	if len(assigneeProject.Tasks) != 1 || assigneeProject.Tasks[0].ID != assignedTask.ID {
+		t.Fatalf("expected assignee project detail to include assigned task %q, got %#v", assignedTask.ID, assigneeProject.Tasks)
+	}
+
+	outsiderProjectResponse := suite.DoJSON(t, http.MethodGet, "/projects/"+project.ID, outsider.Token, nil)
+	assertStatus(t, outsiderProjectResponse, http.StatusForbidden)
+
+	assigneeProjectUpdateResponse := suite.DoJSON(t, http.MethodPatch, "/projects/"+project.ID, assignee.Token, map[string]any{
+		"name": "Assignee Cannot Rename",
+	})
+	assertStatus(t, assigneeProjectUpdateResponse, http.StatusForbidden)
+
+	assigneeProjectDeleteResponse := suite.DoJSON(t, http.MethodDelete, "/projects/"+project.ID, assignee.Token, nil)
+	assertStatus(t, assigneeProjectDeleteResponse, http.StatusForbidden)
+
+	assigneeDeleteAssignedTaskResponse := suite.DoJSON(t, http.MethodDelete, "/tasks/"+assignedTask.ID, assignee.Token, nil)
+	assertStatus(t, assigneeDeleteAssignedTaskResponse, http.StatusForbidden)
+
+	assigneeCreatedTaskResponse := suite.DoJSON(t, http.MethodPost, "/projects/"+project.ID+"/tasks", assignee.Token, map[string]any{
+		"title": "Task created by assignee",
+	})
+	assertStatus(t, assigneeCreatedTaskResponse, http.StatusCreated)
+
+	var assigneeCreatedTask taskResponse
+	decodeJSONResponse(t, assigneeCreatedTaskResponse, &assigneeCreatedTask)
+
+	if assigneeCreatedTask.CreatorID != assignee.User.ID {
+		t.Fatalf("expected assignee-created task creator id %q, got %q", assignee.User.ID, assigneeCreatedTask.CreatorID)
+	}
+
+	assigneeDeleteOwnTaskResponse := suite.DoJSON(t, http.MethodDelete, "/tasks/"+assigneeCreatedTask.ID, assignee.Token, nil)
+	assertStatus(t, assigneeDeleteOwnTaskResponse, http.StatusOK)
+}
+
 func TestIntegrationRegisterPreflightCORS(t *testing.T) {
 	suite := requireSuite(t)
 	suite.ResetDatabase(t)
 
-	request, err := http.NewRequest(http.MethodOptions, suite.server.URL+"/auth/register", nil)
-	if err != nil {
-		t.Fatalf("create CORS preflight request: %v", err)
-	}
+	for _, origin := range []string{"http://localhost:5173", "http://localhost:3000"} {
+		request, err := http.NewRequest(http.MethodOptions, suite.server.URL+"/auth/register", nil)
+		if err != nil {
+			t.Fatalf("create CORS preflight request: %v", err)
+		}
 
-	request.Header.Set("Origin", "http://localhost:5173")
-	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
-	request.Header.Set("Access-Control-Request-Headers", "content-type")
+		request.Header.Set("Origin", origin)
+		request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+		request.Header.Set("Access-Control-Request-Headers", "content-type")
 
-	response, err := suite.httpClient.Do(request)
-	if err != nil {
-		t.Fatalf("execute CORS preflight request: %v", err)
-	}
-	defer response.Body.Close()
+		response, err := suite.httpClient.Do(request)
+		if err != nil {
+			t.Fatalf("execute CORS preflight request: %v", err)
+		}
+		defer response.Body.Close()
 
-	if response.StatusCode != http.StatusNoContent {
-		t.Fatalf("expected preflight status %d, got %d", http.StatusNoContent, response.StatusCode)
-	}
+		if response.StatusCode != http.StatusNoContent {
+			t.Fatalf("expected preflight status %d, got %d", http.StatusNoContent, response.StatusCode)
+		}
 
-	if got := response.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
-		t.Fatalf("expected Access-Control-Allow-Origin header to echo dev origin, got %q", got)
-	}
-	if got := response.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPost) {
-		t.Fatalf("expected Access-Control-Allow-Methods to include POST, got %q", got)
-	}
-	if got := response.Header.Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(got), "content-type") {
-		t.Fatalf("expected Access-Control-Allow-Headers to include Content-Type, got %q", got)
+		if got := response.Header.Get("Access-Control-Allow-Origin"); got != origin {
+			t.Fatalf("expected Access-Control-Allow-Origin header to echo origin %q, got %q", origin, got)
+		}
+		if got := response.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPost) {
+			t.Fatalf("expected Access-Control-Allow-Methods to include POST, got %q", got)
+		}
+		if got := response.Header.Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(got), "content-type") {
+			t.Fatalf("expected Access-Control-Allow-Headers to include Content-Type, got %q", got)
+		}
 	}
 }
 

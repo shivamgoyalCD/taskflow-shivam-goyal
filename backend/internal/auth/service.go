@@ -94,6 +94,18 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (AuthResponse, er
 	}, nil
 }
 
+func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
+	users, err := s.repository.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if users == nil {
+		users = make([]User, 0)
+	}
+
+	return users, nil
+}
+
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }

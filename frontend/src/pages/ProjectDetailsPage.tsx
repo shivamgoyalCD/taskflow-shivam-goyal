@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   Box,
@@ -26,6 +27,7 @@ import InboxRoundedIcon from "@mui/icons-material/InboxRounded";
 import FilterAltOffRoundedIcon from "@mui/icons-material/FilterAltOffRounded";
 import { useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
+import { listUsers } from "@/api/users";
 import type { Task } from "@/api/tasks";
 import { EmptyStatePanel } from "@/components/EmptyStatePanel";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -94,9 +96,17 @@ export function ProjectDetailsPage() {
 
   const project = projectQuery.data;
   const stats = statsQuery.data;
+  const usersQuery = useQuery({
+    queryKey: ["users"],
+    queryFn: listUsers,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const assigneeNameMap = useMemo(() => {
     const map = new Map<string, string>();
+    for (const registeredUser of usersQuery.data?.users ?? []) {
+      map.set(registeredUser.id, registeredUser.name);
+    }
     if (user) {
       map.set(user.id, user.name);
     }
@@ -114,7 +124,7 @@ export function ProjectDetailsPage() {
       }
     }
     return map;
-  }, [project?.tasks, stats?.assignee_counts, user]);
+  }, [project?.tasks, stats?.assignee_counts, user, usersQuery.data?.users]);
 
   const assigneeOptions = useMemo<TaskAssigneeOption[]>(() => {
     const namedOptions = Array.from(assigneeNameMap.entries())
@@ -344,6 +354,13 @@ export function ProjectDetailsPage() {
               </Stack>
 
               {projectQuery.isFetching || statsQuery.isFetching ? <LinearProgress /> : null}
+
+              {usersQuery.isError ? (
+                <Alert severity="warning">
+                  Unable to load the full user list right now. Assignee options may be limited until
+                  the user list request succeeds.
+                </Alert>
+              ) : null}
 
               <Divider />
 

@@ -112,7 +112,7 @@ func (r *PostgresRepository) UserHasProjectTaskAccess(ctx context.Context, proje
 			FROM tasks
 			WHERE
 				project_id = $1
-				AND (assignee_id = $2 OR creator_id = $2)
+				AND assignee_id = $2
 		)
 	`
 

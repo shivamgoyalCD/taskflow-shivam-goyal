@@ -184,6 +184,7 @@ func newRouter(app *application) http.Handler {
 			}
 		})
 
+		r.Get("/users", app.authHandler.ListUsers)
 		r.Get("/projects", app.projectsHandler.List)
 		r.Post("/projects", app.projectsHandler.Create)
 		r.Get("/projects/{id}", app.projectsHandler.GetByID)

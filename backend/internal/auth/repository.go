@@ -34,6 +34,7 @@ type CreateUserParams struct {
 type Repository interface {
 	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
 	GetByEmail(ctx context.Context, email string) (User, error)
+	ListUsers(ctx context.Context) ([]User, error)
 }
 
 type PostgresRepository struct {
@@ -94,6 +95,36 @@ func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (User
 	}
 
 	return user, nil
+}
+
+func (r *PostgresRepository) ListUsers(ctx context.Context) ([]User, error) {
+	const query = `
+		SELECT id, name, email, created_at
+		FROM users
+		ORDER BY name ASC, email ASC
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan user row: %w", err)
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user rows: %w", err)
+	}
+
+	return users, nil
 }
 
 func isDuplicateEmailError(err error) bool {

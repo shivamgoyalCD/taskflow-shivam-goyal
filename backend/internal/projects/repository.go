@@ -95,7 +95,7 @@ func (r *PostgresRepository) ListAccessible(ctx context.Context, userID string, 
 				FROM tasks t
 				WHERE
 					t.project_id = p.id
-					AND (t.assignee_id = $1 OR t.creator_id = $1)
+					AND t.assignee_id = $1
 			)
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3
@@ -186,7 +186,7 @@ func (r *PostgresRepository) UserHasTaskAccess(ctx context.Context, projectID st
 			FROM tasks
 			WHERE
 				project_id = $1
-				AND (assignee_id = $2 OR creator_id = $2)
+				AND assignee_id = $2
 		)
 	`
 

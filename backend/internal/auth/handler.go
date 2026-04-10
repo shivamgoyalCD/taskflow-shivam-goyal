@@ -27,6 +27,10 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type listUsersResponse struct {
+	Users []User `json:"users"`
+}
+
 func NewHandler(logger *slog.Logger, service *Service) *Handler {
 	return &Handler{
 		logger:  logger,
@@ -114,6 +118,21 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err := response.OK(w, authResponse); err != nil {
 		h.logger.Error("http_auth_login_response_failed", "error", err)
+	}
+}
+
+func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.service.ListUsers(r.Context())
+	if err != nil {
+		h.logger.Error("http_auth_list_users_failed", "error", err)
+		if writeErr := response.InternalServerError(w); writeErr != nil {
+			h.logger.Error("http_auth_list_users_error_response_failed", "error", writeErr)
+		}
+		return
+	}
+
+	if err := response.OK(w, listUsersResponse{Users: users}); err != nil {
+		h.logger.Error("http_auth_list_users_response_failed", "error", err)
 	}
 }
 
