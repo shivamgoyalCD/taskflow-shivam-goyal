@@ -1,0 +1,8 @@
+.env
+.env.*
+*.exe
+*.out
+bin
+coverage
+tmp
+.DS_Store
