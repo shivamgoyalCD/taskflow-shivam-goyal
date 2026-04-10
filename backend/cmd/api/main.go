@@ -19,6 +19,7 @@ import (
 	"taskflow-shivam-goyal/backend/internal/db"
 	appmiddleware "taskflow-shivam-goyal/backend/internal/middleware"
 	"taskflow-shivam-goyal/backend/internal/projects"
+	"taskflow-shivam-goyal/backend/internal/realtime"
 	"taskflow-shivam-goyal/backend/internal/response"
 	"taskflow-shivam-goyal/backend/internal/tasks"
 )
@@ -69,13 +70,14 @@ func main() {
 
 	authRepository := auth.NewRepository(pool)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Expiry)
+	realtimeManager := realtime.NewManager()
 	authService := auth.NewService(authRepository, jwtManager)
 	authHandler := auth.NewHandler(logger, authService)
 	projectsRepository := projects.NewRepository(pool)
 	projectsService := projects.NewService(projectsRepository)
-	projectsHandler := projects.NewHandler(logger, projectsService)
+	projectsHandler := projects.NewHandler(logger, projectsService, realtimeManager)
 	tasksRepository := tasks.NewRepository(pool)
-	tasksService := tasks.NewService(tasksRepository)
+	tasksService := tasks.NewService(tasksRepository, realtimeManager)
 	tasksHandler := tasks.NewHandler(logger, tasksService)
 
 	app := &application{
@@ -167,6 +169,7 @@ func newRouter(app *application) http.Handler {
 		r.Post("/projects", app.projectsHandler.Create)
 		r.Get("/projects/{id}", app.projectsHandler.GetByID)
 		r.Get("/projects/{id}/stats", app.projectsHandler.GetStats)
+		r.Get("/projects/{id}/events", app.projectsHandler.Events)
 		r.Patch("/projects/{id}", app.projectsHandler.Update)
 		r.Delete("/projects/{id}", app.projectsHandler.Delete)
 		r.Get("/projects/{id}/tasks", app.tasksHandler.ListByProject)

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"taskflow-shivam-goyal/backend/internal/realtime"
 )
 
 const (
@@ -63,10 +65,14 @@ type UpdateInput struct {
 
 type Service struct {
 	repository Repository
+	publisher  realtime.Publisher
 }
 
-func NewService(repository Repository) *Service {
-	return &Service{repository: repository}
+func NewService(repository Repository, publisher realtime.Publisher) *Service {
+	return &Service{
+		repository: repository,
+		publisher:  publisher,
+	}
 }
 
 func (s *Service) List(ctx context.Context, input ListInput) (ListResult, error) {
@@ -134,6 +140,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Task, error) {
 		return Task{}, err
 	}
 
+	s.publish(realtime.Event{
+		Type:      realtime.EventTypeTaskCreated,
+		ProjectID: task.ProjectID,
+		Task:      toRealtimeTask(task),
+	})
+
 	return task, nil
 }
 
@@ -199,6 +211,12 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (Task, error) {
 		return Task{}, err
 	}
 
+	s.publish(realtime.Event{
+		Type:      realtime.EventTypeTaskUpdated,
+		ProjectID: updatedTask.ProjectID,
+		Task:      toRealtimeTask(updatedTask),
+	})
+
 	return updatedTask, nil
 }
 
@@ -212,7 +230,18 @@ func (s *Service) Delete(ctx context.Context, currentUserID string, taskID strin
 		return ErrForbidden
 	}
 
-	return s.repository.Delete(ctx, taskID)
+	if err := s.repository.Delete(ctx, taskID); err != nil {
+		return err
+	}
+
+	deletedTaskID := taskRecord.ID
+	s.publish(realtime.Event{
+		Type:      realtime.EventTypeTaskDeleted,
+		ProjectID: taskRecord.ProjectID,
+		TaskID:    &deletedTaskID,
+	})
+
+	return nil
 }
 
 func (s *Service) ensureProjectAccess(ctx context.Context, project ProjectRef, currentUserID string) error {
@@ -256,4 +285,28 @@ func normalizeNullableString(value *string) *string {
 	}
 
 	return &trimmed
+}
+
+func (s *Service) publish(event realtime.Event) {
+	if s.publisher == nil {
+		return
+	}
+
+	s.publisher.Publish(event)
+}
+
+func toRealtimeTask(task Task) *realtime.TaskPayload {
+	return &realtime.TaskPayload{
+		ID:          task.ID,
+		Title:       task.Title,
+		Description: task.Description,
+		Status:      task.Status,
+		Priority:    task.Priority,
+		ProjectID:   task.ProjectID,
+		AssigneeID:  task.AssigneeID,
+		CreatorID:   task.CreatorID,
+		DueDate:     task.DueDate,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+	}
 }

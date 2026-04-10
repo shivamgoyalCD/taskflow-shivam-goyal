@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"taskflow-shivam-goyal/backend/internal/middleware"
+	"taskflow-shivam-goyal/backend/internal/realtime"
 	"taskflow-shivam-goyal/backend/internal/response"
 	"taskflow-shivam-goyal/backend/internal/validation"
 )
@@ -17,6 +18,7 @@ import (
 type Handler struct {
 	logger  *slog.Logger
 	service *Service
+	events  *realtime.Manager
 }
 
 type createProjectRequest struct {
@@ -29,10 +31,11 @@ type updateProjectRequest struct {
 	Description *string `json:"description"`
 }
 
-func NewHandler(logger *slog.Logger, service *Service) *Handler {
+func NewHandler(logger *slog.Logger, service *Service, events *realtime.Manager) *Handler {
 	return &Handler{
 		logger:  logger,
 		service: service,
+		events:  events,
 	}
 }
 

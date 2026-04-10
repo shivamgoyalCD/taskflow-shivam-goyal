@@ -138,6 +138,11 @@ func (s *Service) GetStats(ctx context.Context, currentUserID string, projectID 
 	}, nil
 }
 
+func (s *Service) AuthorizeAccess(ctx context.Context, currentUserID string, projectID string) error {
+	_, err := s.getAccessibleProject(ctx, currentUserID, projectID)
+	return err
+}
+
 func (s *Service) Update(ctx context.Context, input UpdateInput) (Project, error) {
 	project, err := s.repository.GetByID(ctx, input.ProjectID)
 	if err != nil {
