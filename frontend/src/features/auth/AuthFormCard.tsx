@@ -24,6 +24,8 @@ type AuthFormCardProps<TValues extends FieldValues> = {
   submitLabel: string;
   fields: Array<FieldConfig<Extract<keyof TValues, string>>>;
   schema: ZodType<TValues>;
+  onSubmit: (values: TValues) => Promise<void> | void;
+  helperMessage?: string;
 };
 
 export function AuthFormCard<TValues extends FieldValues>({
@@ -32,6 +34,8 @@ export function AuthFormCard<TValues extends FieldValues>({
   submitLabel,
   fields,
   schema,
+  onSubmit,
+  helperMessage,
 }: AuthFormCardProps<TValues>) {
   const defaultValues = Object.fromEntries(
     fields.map((field) => [field.name, ""]),
@@ -58,15 +62,15 @@ export function AuthFormCard<TValues extends FieldValues>({
           </Box>
 
           <Alert severity="info">
-            Frontend scaffold only. Form validation is wired, but API submission is not
-            implemented yet.
+            {helperMessage ??
+              "Frontend scaffold only. Form validation is wired, but API submission is not implemented yet."}
           </Alert>
 
           <Stack
             component="form"
             spacing={2}
-            onSubmit={handleSubmit(async () => {
-              await Promise.resolve();
+            onSubmit={handleSubmit(async (values) => {
+              await onSubmit(values);
             })}
           >
             {fields.map((field) => (

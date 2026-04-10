@@ -1,18 +1,30 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import {
   AppBar,
+  Avatar,
   Box,
   Button,
   Container,
+  Divider,
   Stack,
   Toolbar,
   Typography,
 } from "@mui/material";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import { AppNavLink } from "@/components/AppNavLink";
+import { useAuth } from "@/features/auth/AuthContext";
 
 export function AppLayout() {
+  const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useAuth();
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <Box sx={{ minHeight: "100vh" }}>
       <AppBar
@@ -52,16 +64,53 @@ export function AppLayout() {
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
-              <AppNavLink to="/projects" label="Projects" />
-              <AppNavLink to="/register" label="Register" />
-              <Button
-                component={AppNavLink}
-                to="/login"
-                variant="contained"
-                startIcon={<LoginRoundedIcon />}
-              >
-                Login
-              </Button>
+              {isAuthenticated ? (
+                <>
+                  <AppNavLink to="/projects" label="Projects" />
+                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                  <Stack direction="row" spacing={1.25} alignItems="center" sx={{ pl: 0.5 }}>
+                    <Avatar
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        bgcolor: "primary.main",
+                        fontSize: 14,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {user?.name.slice(0, 1).toUpperCase() ?? "U"}
+                    </Avatar>
+                    <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {user?.name ?? "User"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Local auth placeholder
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      startIcon={<LogoutRoundedIcon />}
+                      onClick={handleLogout}
+                    >
+                      Logout
+                    </Button>
+                  </Stack>
+                </>
+              ) : (
+                <>
+                  <AppNavLink to="/register" label="Register" />
+                  <Button
+                    component={AppNavLink}
+                    to="/login"
+                    variant="contained"
+                    startIcon={<LoginRoundedIcon />}
+                  >
+                    Login
+                  </Button>
+                </>
+              )}
             </Stack>
           </Toolbar>
         </Container>
