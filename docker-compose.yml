@@ -1,3 +1,24 @@
-version: "3.9"
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: taskflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/000001_create_taskflow_schema.up.sql:/docker-entrypoint-initdb.d/000001_create_taskflow_schema.up.sql:ro
+      - ./backend/seeds/seed.sql:/docker-entrypoint-initdb.d/000002_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-services: {}
+volumes:
+  postgres_data:
