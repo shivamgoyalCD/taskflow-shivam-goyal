@@ -6,18 +6,26 @@ import {
   Button,
   Container,
   Divider,
+  IconButton,
   Stack,
+  Tooltip,
   Toolbar,
   Typography,
+  useTheme,
 } from "@mui/material";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { AppNavLink } from "@/components/AppNavLink";
 import { useAuth } from "@/features/auth/AuthContext";
+import { useThemeMode } from "@/app/ThemeModeProvider";
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const { mode, toggleMode } = useThemeMode();
   const { isAuthenticated, user, logout } = useAuth();
 
   function handleLogout() {
@@ -33,8 +41,11 @@ export function AppLayout() {
         elevation={0}
         sx={{
           backdropFilter: "blur(18px)",
-          borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
-          backgroundColor: "rgba(248, 251, 255, 0.8)",
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          backgroundColor:
+            theme.palette.mode === "dark"
+              ? "rgba(11, 18, 32, 0.82)"
+              : "rgba(248, 251, 255, 0.8)",
         }}
       >
         <Container maxWidth="lg">
@@ -64,6 +75,22 @@ export function AppLayout() {
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
+              <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+                <IconButton
+                  color="inherit"
+                  onClick={toggleMode}
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(148, 163, 184, 0.08)"
+                        : "rgba(255, 255, 255, 0.72)",
+                  }}
+                >
+                  {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+                </IconButton>
+              </Tooltip>
+
               {isAuthenticated ? (
                 <>
                   <AppNavLink to="/projects" label="Projects" />

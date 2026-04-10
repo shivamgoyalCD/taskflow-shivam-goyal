@@ -1,9 +1,4 @@
 :root {
-  color: #0f172a;
-  background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 28%),
-    radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 26%),
-    linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
