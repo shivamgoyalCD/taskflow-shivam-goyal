@@ -12,25 +12,55 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"taskflow-shivam-goyal/backend/internal/config"
+	"taskflow-shivam-goyal/backend/internal/db"
 	appmiddleware "taskflow-shivam-goyal/backend/internal/middleware"
 	"taskflow-shivam-goyal/backend/internal/response"
 )
+
+type application struct {
+	logger *slog.Logger
+	db     *pgxpool.Pool
+}
 
 type healthResponse struct {
 	Status string `json:"status"`
 }
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("config_load_failed", "error", err)
+		logger.Error("config_load_failed", "error", err)
 		os.Exit(1)
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	router := newRouter(logger)
+	startupCtx, cancelStartup := db.StartupContext(context.Background())
+	defer cancelStartup()
+
+	pool, err := db.Open(startupCtx, cfg.Postgres)
+	if err != nil {
+		logger.Error("db_connect_failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	logger.Info("db_connected")
+
+	if err := db.RunMigrations(startupCtx, logger, cfg.Postgres, pool); err != nil {
+		logger.Error("db_migrations_failed", "error", err)
+		os.Exit(1)
+	}
+
+	app := &application{
+		logger: logger,
+		db:     pool,
+	}
+
+	router := newRouter(app)
 
 	server := &http.Server{
 		Addr:              cfg.Server.Address(),
@@ -73,28 +103,28 @@ func main() {
 	logger.Info("http_server_stopped")
 }
 
-func newRouter(logger *slog.Logger) http.Handler {
+func newRouter(app *application) http.Handler {
 	router := chi.NewRouter()
 
 	router.Use(chimiddleware.RequestID)
-	router.Use(appmiddleware.RequestLogger(logger))
-	router.Use(appmiddleware.Recoverer(logger))
+	router.Use(appmiddleware.RequestLogger(app.logger))
+	router.Use(appmiddleware.Recoverer(app.logger))
 
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		if err := response.Error(w, http.StatusNotFound, "resource not found"); err != nil {
-			logger.Error("http_not_found_response_failed", "error", err)
+			app.logger.Error("http_not_found_response_failed", "error", err)
 		}
 	})
 
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		if err := response.Error(w, http.StatusMethodNotAllowed, "method not allowed"); err != nil {
-			logger.Error("http_method_not_allowed_response_failed", "error", err)
+			app.logger.Error("http_method_not_allowed_response_failed", "error", err)
 		}
 	})
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := response.JSON(w, http.StatusOK, healthResponse{Status: "ok"}); err != nil {
-			logger.Error("http_health_response_failed", "error", err)
+			app.logger.Error("http_health_response_failed", "error", err)
 		}
 	})
 
