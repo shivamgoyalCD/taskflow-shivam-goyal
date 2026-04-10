@@ -25,6 +25,7 @@ type application struct {
 	logger      *slog.Logger
 	db          *pgxpool.Pool
 	authHandler *auth.Handler
+	jwtManager  *auth.JWTManager
 }
 
 type healthResponse struct {
@@ -71,6 +72,7 @@ func main() {
 		logger:      logger,
 		db:          pool,
 		authHandler: authHandler,
+		jwtManager:  jwtManager,
 	}
 
 	router := newRouter(app)
@@ -135,19 +137,23 @@ func newRouter(app *application) http.Handler {
 		}
 	})
 
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		if err := response.JSON(w, http.StatusOK, healthResponse{Status: "ok"}); err != nil {
-			app.logger.Error("http_health_response_failed", "error", err)
-		}
-	})
-
 	router.Route("/auth", func(r chi.Router) {
 		r.Post("/register", app.authHandler.Register)
 		r.Post("/login", app.authHandler.Login)
 	})
 
-	// Temporary local debugging route. Remove before final submission.
-	router.Get("/debug/seed-check", app.handleSeedCheck)
+	router.Group(func(r chi.Router) {
+		r.Use(appmiddleware.Authenticate(app.logger, app.jwtManager))
+
+		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			if err := response.JSON(w, http.StatusOK, healthResponse{Status: "ok"}); err != nil {
+				app.logger.Error("http_health_response_failed", "error", err)
+			}
+		})
+
+		// Temporary local debugging route. Remove before final submission.
+		r.Get("/debug/seed-check", app.handleSeedCheck)
+	})
 
 	return router
 }
