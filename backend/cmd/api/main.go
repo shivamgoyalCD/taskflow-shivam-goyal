@@ -18,14 +18,16 @@ import (
 	"taskflow-shivam-goyal/backend/internal/config"
 	"taskflow-shivam-goyal/backend/internal/db"
 	appmiddleware "taskflow-shivam-goyal/backend/internal/middleware"
+	"taskflow-shivam-goyal/backend/internal/projects"
 	"taskflow-shivam-goyal/backend/internal/response"
 )
 
 type application struct {
-	logger      *slog.Logger
-	db          *pgxpool.Pool
-	authHandler *auth.Handler
-	jwtManager  *auth.JWTManager
+	logger          *slog.Logger
+	db              *pgxpool.Pool
+	authHandler     *auth.Handler
+	projectsHandler *projects.Handler
+	jwtManager      *auth.JWTManager
 }
 
 type healthResponse struct {
@@ -67,12 +69,16 @@ func main() {
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Expiry)
 	authService := auth.NewService(authRepository, jwtManager)
 	authHandler := auth.NewHandler(logger, authService)
+	projectsRepository := projects.NewRepository(pool)
+	projectsService := projects.NewService(projectsRepository)
+	projectsHandler := projects.NewHandler(logger, projectsService)
 
 	app := &application{
-		logger:      logger,
-		db:          pool,
-		authHandler: authHandler,
-		jwtManager:  jwtManager,
+		logger:          logger,
+		db:              pool,
+		authHandler:     authHandler,
+		projectsHandler: projectsHandler,
+		jwtManager:      jwtManager,
 	}
 
 	router := newRouter(app)
@@ -150,6 +156,12 @@ func newRouter(app *application) http.Handler {
 				app.logger.Error("http_health_response_failed", "error", err)
 			}
 		})
+
+		r.Get("/projects", app.projectsHandler.List)
+		r.Post("/projects", app.projectsHandler.Create)
+		r.Get("/projects/{id}", app.projectsHandler.GetByID)
+		r.Patch("/projects/{id}", app.projectsHandler.Update)
+		r.Delete("/projects/{id}", app.projectsHandler.Delete)
 
 		// Temporary local debugging route. Remove before final submission.
 		r.Get("/debug/seed-check", app.handleSeedCheck)
