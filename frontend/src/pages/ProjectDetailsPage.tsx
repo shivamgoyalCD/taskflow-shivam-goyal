@@ -39,6 +39,7 @@ import { TaskDialog, type TaskAssigneeOption } from "@/features/tasks/TaskDialog
 import {
   useCreateTaskMutation,
   useDeleteTaskMutation,
+  useUpdateTaskStatusMutation,
   useUpdateTaskMutation,
 } from "@/features/tasks/useTaskMutations";
 
@@ -84,6 +85,9 @@ export function ProjectDetailsPage() {
   const statsQuery = useProjectStatsQuery(projectId);
   const createTaskMutation = useCreateTaskMutation(projectId);
   const updateTaskMutation = useUpdateTaskMutation(projectId);
+  const updateTaskStatusMutation = useUpdateTaskStatusMutation(projectId, {
+    onRollback: (message) => openSnackbar("error", message),
+  });
   const deleteTaskMutation = useDeleteTaskMutation(projectId);
 
   const project = projectQuery.data;
@@ -135,6 +139,8 @@ export function ProjectDetailsPage() {
     in_progress: filteredTasks.filter((task) => task.status === "in_progress"),
     done: filteredTasks.filter((task) => task.status === "done"),
   };
+  const activeStatusTaskId =
+    updateTaskStatusMutation.isPending ? updateTaskStatusMutation.variables?.task.id ?? null : null;
 
   function handleStatusChange(event: SelectChangeEvent<"all" | TaskStatus>) {
     setStatusFilter(event.target.value as "all" | TaskStatus);
@@ -222,6 +228,18 @@ export function ProjectDetailsPage() {
           : "Unable to delete the task right now. Please try again.";
       setDeleteApiError(message);
       openSnackbar("error", message);
+    }
+  }
+
+  async function handleInlineStatusChange(task: Task, status: TaskStatus) {
+    if (task.status === status) {
+      return;
+    }
+
+    try {
+      await updateTaskStatusMutation.mutateAsync({ task, status });
+    } catch {
+      return;
     }
   }
 
@@ -376,6 +394,8 @@ export function ProjectDetailsPage() {
                                             `User ${task.assignee_id.slice(0, 8)}...`
                                           : "Unassigned"
                                       }
+                                      isStatusUpdating={activeStatusTaskId === task.id}
+                                      onStatusChange={(status) => void handleInlineStatusChange(task, status)}
                                       onEdit={() => {
                                         setEditApiError(null);
                                         setEditFieldErrors({});
@@ -569,11 +589,15 @@ function StackHeader({
 function TaskCard({
   task,
   assigneeLabel,
+  isStatusUpdating,
+  onStatusChange,
   onEdit,
   onDelete,
 }: {
   task: Task;
   assigneeLabel: string;
+  isStatusUpdating: boolean;
+  onStatusChange: (status: Task["status"]) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -613,13 +637,33 @@ function TaskCard({
             />
           </Stack>
 
-          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-            <IconButton aria-label={`Edit ${task.title}`} color="primary" onClick={onEdit}>
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
-            <IconButton aria-label={`Delete ${task.title}`} color="error" onClick={onDelete}>
-              <DeleteOutlineRoundedIcon fontSize="small" />
-            </IconButton>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
+            <Select
+              size="small"
+              value={task.status}
+              inputProps={{ "aria-label": "Task status" }}
+              disabled={isStatusUpdating}
+              onChange={(event) => onStatusChange(event.target.value as Task["status"])}
+              sx={{ minWidth: 150 }}
+            >
+              <MenuItem value="todo">Todo</MenuItem>
+              <MenuItem value="in_progress">In Progress</MenuItem>
+              <MenuItem value="done">Done</MenuItem>
+            </Select>
+
+            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+              <IconButton aria-label={`Edit ${task.title}`} color="primary" onClick={onEdit}>
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+              <IconButton aria-label={`Delete ${task.title}`} color="error" onClick={onDelete}>
+                <DeleteOutlineRoundedIcon fontSize="small" />
+              </IconButton>
+            </Stack>
           </Stack>
         </Stack>
       </CardContent>
