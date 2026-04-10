@@ -26,6 +26,31 @@ The backend now includes a Go API scaffold using Chi with:
 
 For local development, copy `.env.example` to `.env` before running the API.
 
+## Frontend
+
+The frontend is initialized with React, TypeScript, and Vite, plus:
+
+- React Router
+- MUI
+- TanStack Query
+- React Hook Form
+- Zod
+
+Available placeholder routes:
+
+- `/login`
+- `/register`
+- `/projects`
+- `/projects/:id`
+
+To run the frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
 ## Integration Tests
 
 The backend includes HTTP integration tests that exercise the real Chi router against an isolated PostgreSQL database created just for the test run.
