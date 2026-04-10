@@ -8,7 +8,6 @@ import {
   Chip,
   Divider,
   Grid2,
-  IconButton,
   MenuItem,
   Select,
   Snackbar,
@@ -16,14 +15,11 @@ import {
   type SelectChangeEvent,
   Skeleton,
   Typography,
-  useTheme,
 } from "@mui/material";
 import MuiAlert from "@mui/material/Alert";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AutorenewRoundedIcon from "@mui/icons-material/AutorenewRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";
 import { useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
@@ -35,6 +31,7 @@ import {
   defaultTaskFormValues,
   type TaskFormValues,
 } from "@/features/tasks/taskSchemas";
+import { TaskBoard } from "@/features/tasks/TaskBoard";
 import { TaskDialog, type TaskAssigneeOption } from "@/features/tasks/TaskDialog";
 import {
   useCreateTaskMutation,
@@ -57,7 +54,6 @@ const statusSections: Array<{
 
 export function ProjectDetailsPage() {
   const { id } = useParams();
-  const theme = useTheme();
   const { user } = useAuth();
   const projectId = id ?? "";
 
@@ -346,75 +342,26 @@ export function ProjectDetailsPage() {
                   description="Change the selected status or assignee filter to see more tasks."
                 />
               ) : (
-                <Grid2 container spacing={3}>
-                  {statusSections
-                    .filter((section) => statusFilter === "all" || section.key === statusFilter)
-                    .map((section) => (
-                      <Grid2 key={section.key} size={{ xs: 12, xl: 4 }}>
-                        <Card
-                          sx={{
-                            height: "100%",
-                            backgroundColor:
-                              theme.palette.mode === "dark"
-                                ? "rgba(15, 23, 42, 0.36)"
-                                : "rgba(255, 255, 255, 0.72)",
-                          }}
-                        >
-                          <CardContent sx={{ p: 2.5 }}>
-                            <Stack spacing={2}>
-                              <StackHeader
-                                label={section.label}
-                                icon={section.icon}
-                                count={tasksByStatus[section.key].length}
-                              />
-
-                              {tasksByStatus[section.key].length === 0 ? (
-                                <Box
-                                  sx={{
-                                    minHeight: 120,
-                                    display: "grid",
-                                    placeItems: "center",
-                                    borderRadius: 3,
-                                    border: `1px dashed ${theme.palette.divider}`,
-                                  }}
-                                >
-                                  <Typography variant="body2" color="text.secondary">
-                                    No tasks in this group
-                                  </Typography>
-                                </Box>
-                              ) : (
-                                <Stack spacing={1.5}>
-                                  {tasksByStatus[section.key].map((task) => (
-                                    <TaskCard
-                                      key={task.id}
-                                      task={task}
-                                      assigneeLabel={
-                                        task.assignee_id
-                                          ? assigneeNameMap.get(task.assignee_id) ??
-                                            `User ${task.assignee_id.slice(0, 8)}...`
-                                          : "Unassigned"
-                                      }
-                                      isStatusUpdating={activeStatusTaskId === task.id}
-                                      onStatusChange={(status) => void handleInlineStatusChange(task, status)}
-                                      onEdit={() => {
-                                        setEditApiError(null);
-                                        setEditFieldErrors({});
-                                        setEditingTask(task);
-                                      }}
-                                      onDelete={() => {
-                                        setDeleteApiError(null);
-                                        setDeletingTask(task);
-                                      }}
-                                    />
-                                  ))}
-                                </Stack>
-                              )}
-                            </Stack>
-                          </CardContent>
-                        </Card>
-                      </Grid2>
-                    ))}
-                </Grid2>
+                <TaskBoard
+                  tasksByStatus={tasksByStatus}
+                  activeStatusTaskId={activeStatusTaskId}
+                  getAssigneeLabel={(task) =>
+                    task.assignee_id
+                      ? assigneeNameMap.get(task.assignee_id) ??
+                        `User ${task.assignee_id.slice(0, 8)}...`
+                      : "Unassigned"
+                  }
+                  onTaskStatusChange={handleInlineStatusChange}
+                  onEditTask={(task) => {
+                    setEditApiError(null);
+                    setEditFieldErrors({});
+                    setEditingTask(task);
+                  }}
+                  onDeleteTask={(task) => {
+                    setDeleteApiError(null);
+                    setDeletingTask(task);
+                  }}
+                />
               )}
             </Stack>
           </CardContent>
@@ -562,115 +509,6 @@ function StatusSummaryCard({
   );
 }
 
-function StackHeader({
-  label,
-  icon: Icon,
-  count,
-}: {
-  label: string;
-  icon: typeof RadioButtonUncheckedRoundedIcon;
-  count: number;
-}) {
-  return (
-    <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Icon color="primary" fontSize="small" />
-        <Typography variant="h6">{label}</Typography>
-      </Stack>
-      <Chip
-        size="small"
-        color="primary"
-        label={`${count} task${count === 1 ? "" : "s"}`}
-      />
-    </Stack>
-  );
-}
-
-function TaskCard({
-  task,
-  assigneeLabel,
-  isStatusUpdating,
-  onStatusChange,
-  onEdit,
-  onDelete,
-}: {
-  task: Task;
-  assigneeLabel: string;
-  isStatusUpdating: boolean;
-  onStatusChange: (status: Task["status"]) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <Card variant="outlined" sx={{ borderRadius: 3 }}>
-      <CardContent sx={{ p: 2 }}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-            <Box>
-              <Typography fontWeight={700}>{task.title}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Updated {new Date(task.updated_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-            <Chip
-              size="small"
-              variant="outlined"
-              color={priorityColor(task.priority)}
-              label={priorityLabel(task.priority)}
-            />
-          </Stack>
-
-          <Typography variant="body2" color="text.secondary">
-            {task.description?.trim() ? task.description : "No task description provided."}
-          </Typography>
-
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip size="small" variant="outlined" label={assigneeLabel} />
-            <Chip
-              size="small"
-              variant="outlined"
-              label={
-                task.due_date
-                  ? `Due ${new Date(task.due_date).toLocaleDateString()}`
-                  : "No due date"
-              }
-            />
-          </Stack>
-
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            justifyContent="space-between"
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
-            <Select
-              size="small"
-              value={task.status}
-              inputProps={{ "aria-label": "Task status" }}
-              disabled={isStatusUpdating}
-              onChange={(event) => onStatusChange(event.target.value as Task["status"])}
-              sx={{ minWidth: 150 }}
-            >
-              <MenuItem value="todo">Todo</MenuItem>
-              <MenuItem value="in_progress">In Progress</MenuItem>
-              <MenuItem value="done">Done</MenuItem>
-            </Select>
-
-            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-              <IconButton aria-label={`Edit ${task.title}`} color="primary" onClick={onEdit}>
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-              <IconButton aria-label={`Delete ${task.title}`} color="error" onClick={onDelete}>
-                <DeleteOutlineRoundedIcon fontSize="small" />
-              </IconButton>
-            </Stack>
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
     <Stack spacing={1.5} alignItems="center" sx={{ py: 6, textAlign: "center" }}>
@@ -721,18 +559,4 @@ function handleTaskMutationError(
 
   setApiError(fallbackMessage);
   notify("error", fallbackMessage);
-}
-
-function priorityLabel(priority: Task["priority"]) {
-  if (priority === "high") return "High priority";
-  if (priority === "medium") return "Medium priority";
-  return "Low priority";
-}
-
-function priorityColor(
-  priority: Task["priority"],
-): "default" | "success" | "warning" | "error" {
-  if (priority === "high") return "error";
-  if (priority === "medium") return "warning";
-  return "success";
 }
