@@ -25,6 +25,7 @@ import { useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import type { Task } from "@/api/tasks";
 import { useAuth } from "@/features/auth/AuthContext";
+import { useProjectEvents } from "@/features/projects/useProjectEvents";
 import { useProjectDetailQuery, useProjectStatsQuery } from "@/features/projects/useProjectDetail";
 import { DeleteTaskDialog } from "@/features/tasks/DeleteTaskDialog";
 import {
@@ -54,7 +55,7 @@ const statusSections: Array<{
 
 export function ProjectDetailsPage() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { token, user } = useAuth();
   const projectId = id ?? "";
 
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
@@ -79,6 +80,7 @@ export function ProjectDetailsPage() {
 
   const projectQuery = useProjectDetailQuery(projectId);
   const statsQuery = useProjectStatsQuery(projectId);
+  const { liveStatus } = useProjectEvents(projectId, token);
   const createTaskMutation = useCreateTaskMutation(projectId);
   const updateTaskMutation = useUpdateTaskMutation(projectId);
   const updateTaskStatusMutation = useUpdateTaskStatusMutation(projectId, {
@@ -296,10 +298,18 @@ export function ProjectDetailsPage() {
               >
                 <Box>
                   <Typography variant="h5">Tasks</Typography>
-                  <Typography color="text.secondary">
-                    {filteredTasks.length} visible task{filteredTasks.length === 1 ? "" : "s"} after
-                    filters
-                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                    <Typography color="text.secondary">
+                      {filteredTasks.length} visible task{filteredTasks.length === 1 ? "" : "s"} after
+                      filters
+                    </Typography>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={liveStatusColor(liveStatus)}
+                      label={liveStatusLabel(liveStatus)}
+                    />
+                  </Stack>
                 </Box>
 
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
@@ -559,4 +569,31 @@ function handleTaskMutationError(
 
   setApiError(fallbackMessage);
   notify("error", fallbackMessage);
+}
+
+function liveStatusLabel(
+  status: "disconnected" | "connecting" | "connected" | "reconnecting",
+) {
+  if (status === "connected") {
+    return "Live updates connected";
+  }
+  if (status === "reconnecting") {
+    return "Live updates reconnecting";
+  }
+  if (status === "connecting") {
+    return "Live updates connecting";
+  }
+  return "Live updates offline";
+}
+
+function liveStatusColor(
+  status: "disconnected" | "connecting" | "connected" | "reconnecting",
+): "default" | "success" | "warning" {
+  if (status === "connected") {
+    return "success";
+  }
+  if (status === "connecting" || status === "reconnecting") {
+    return "warning";
+  }
+  return "default";
 }

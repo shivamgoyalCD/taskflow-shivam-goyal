@@ -57,6 +57,10 @@ export async function request<TResponse>(
 }
 
 function buildUrl(path: string) {
+  return buildApiUrl(path);
+}
+
+export function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${apiBaseUrl}${normalizedPath}`;
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"net/url"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -397,6 +399,71 @@ func TestIntegrationRegisterPreflightCORS(t *testing.T) {
 	}
 	if got := response.Header.Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(got), "content-type") {
 		t.Fatalf("expected Access-Control-Allow-Headers to include Content-Type, got %q", got)
+	}
+}
+
+func TestIntegrationProjectEventsQueryTokenAuth(t *testing.T) {
+	suite := requireSuite(t)
+	suite.ResetDatabase(t)
+
+	registerBody := map[string]any{
+		"name":     "Events User",
+		"email":    uniqueEmail(t, "events"),
+		"password": "password123",
+	}
+
+	registerResponse := suite.DoJSON(t, http.MethodPost, "/auth/register", "", registerBody)
+	assertStatus(t, registerResponse, http.StatusCreated)
+
+	var register authResponse
+	decodeJSONResponse(t, registerResponse, &register)
+
+	createProjectResponse := suite.DoJSON(t, http.MethodPost, "/projects", register.Token, map[string]any{
+		"name":        "Events Project",
+		"description": "SSE auth integration test",
+	})
+	assertStatus(t, createProjectResponse, http.StatusCreated)
+
+	var project projectResponse
+	decodeJSONResponse(t, createProjectResponse, &project)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		suite.server.URL+"/projects/"+project.ID+"/events?access_token="+url.QueryEscape(register.Token),
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("create project events request: %v", err)
+	}
+	request.Header.Set("Accept", "text/event-stream")
+
+	response, err := suite.httpClient.Do(request)
+	if err != nil {
+		t.Fatalf("execute project events request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("expected project events status %d, got %d: %s", http.StatusOK, response.StatusCode, string(body))
+	}
+
+	if contentType := response.Header.Get("Content-Type"); !strings.Contains(contentType, "text/event-stream") {
+		t.Fatalf("expected text/event-stream content type, got %q", contentType)
+	}
+
+	reader := bufio.NewReader(response.Body)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read initial sse comment: %v", err)
+	}
+
+	if strings.TrimSpace(line) != ": connected" {
+		t.Fatalf("expected initial sse comment ': connected', got %q", strings.TrimSpace(line))
 	}
 }
 
