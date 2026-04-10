@@ -112,7 +112,7 @@ export function AppLayout() {
                         {user?.name ?? "User"}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Local auth placeholder
+                        {user?.email ?? "Signed in"}
                       </Typography>
                     </Box>
                     <Button
