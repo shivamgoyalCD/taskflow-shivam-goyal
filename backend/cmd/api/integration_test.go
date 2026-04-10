@@ -521,7 +521,7 @@ func TestIntegrationAssignedUserAccessAndDeleteRules(t *testing.T) {
 	}
 
 	assigneeDeleteOwnTaskResponse := suite.DoJSON(t, http.MethodDelete, "/tasks/"+assigneeCreatedTask.ID, assignee.Token, nil)
-	assertStatus(t, assigneeDeleteOwnTaskResponse, http.StatusOK)
+	assertStatus(t, assigneeDeleteOwnTaskResponse, http.StatusNoContent)
 }
 
 func TestIntegrationRegisterPreflightCORS(t *testing.T) {
@@ -689,7 +689,6 @@ func newTestSuite() (*testSuite, error) {
 
 	app := &application{
 		logger:          logger,
-		db:              pool,
 		authHandler:     authHandler,
 		projectsHandler: projectsHandler,
 		tasksHandler:    tasksHandler,

@@ -90,5 +90,5 @@ export function updateProject(id: string, payload: UpdateProjectPayload) {
 }
 
 export function deleteProject(id: string) {
-  return apiClient.delete<{ message: string }>(`/projects/${id}`);
+	return apiClient.delete<null>(`/projects/${id}`);
 }

@@ -289,7 +289,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := response.OK(w, response.MessageBody{Message: "task deleted"}); err != nil {
+	if err := response.NoContent(w); err != nil {
 		h.logger.Error("http_tasks_delete_response_failed", "error", err)
 	}
 }

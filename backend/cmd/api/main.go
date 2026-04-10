@@ -26,7 +26,6 @@ import (
 
 type application struct {
 	logger          *slog.Logger
-	db              *pgxpool.Pool
 	authHandler     *auth.Handler
 	projectsHandler *projects.Handler
 	tasksHandler    *tasks.Handler
@@ -93,7 +92,6 @@ func main() {
 
 	app := &application{
 		logger:          logger,
-		db:              pool,
 		authHandler:     authHandler,
 		projectsHandler: projectsHandler,
 		tasksHandler:    tasksHandler,
@@ -197,26 +195,9 @@ func newRouter(app *application) http.Handler {
 		r.Patch("/tasks/{id}", app.tasksHandler.Update)
 		r.Delete("/tasks/{id}", app.tasksHandler.Delete)
 
-		// Temporary local debugging route. Remove before final submission.
-		r.Get("/debug/seed-check", app.handleSeedCheck)
 	})
 
 	return router
-}
-
-func (app *application) handleSeedCheck(w http.ResponseWriter, r *http.Request) {
-	counts, err := db.CountCoreTables(r.Context(), app.db)
-	if err != nil {
-		app.logger.Error("http_seed_check_failed", "error", err)
-		if writeErr := response.InternalServerError(w); writeErr != nil {
-			app.logger.Error("http_seed_check_error_response_failed", "error", writeErr)
-		}
-		return
-	}
-
-	if err := response.OK(w, counts); err != nil {
-		app.logger.Error("http_seed_check_response_failed", "error", err)
-	}
 }
 
 func closeDBPool(logger *slog.Logger, pool *pgxpool.Pool) {

@@ -17,9 +17,14 @@ INSERT INTO users (
     '11111111-1111-4111-8111-111111111111',
     'Test User',
     'test@example.com',
-    '$2a$10$Uw0LDj343yp1tIpouRwHGeWflT3.QjDp9DeJ2XiwTIHf1T.pjEy0i',
+    '$2a$12$ESSGnHrP0KolDLnep6AMs.cYzGQ63XgNyiZR2KnKrXPHA1seCTjAK',
     '2026-01-10 09:00:00'
-) ON CONFLICT DO NOTHING;
+) ON CONFLICT (id) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    password = EXCLUDED.password,
+    created_at = EXCLUDED.created_at;
 
 -- Seed project owned by the test user
 INSERT INTO projects (

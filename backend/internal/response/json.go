@@ -16,10 +16,6 @@ type ValidationErrorBody struct {
 	Fields validation.Errors `json:"fields"`
 }
 
-type MessageBody struct {
-	Message string `json:"message"`
-}
-
 func JSON(w http.ResponseWriter, status int, body any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -68,11 +64,7 @@ func Forbidden(w http.ResponseWriter) error {
 }
 
 func NotFound(w http.ResponseWriter, message string) error {
-	if message == "" {
-		message = "resource not found"
-	}
-
-	return Error(w, http.StatusNotFound, message)
+	return Error(w, http.StatusNotFound, "not found")
 }
 
 func Conflict(w http.ResponseWriter, message string) error {
@@ -85,4 +77,9 @@ func InternalServerError(w http.ResponseWriter) error {
 
 func MethodNotAllowed(w http.ResponseWriter) error {
 	return Error(w, http.StatusMethodNotAllowed, "method not allowed")
+}
+
+func NoContent(w http.ResponseWriter) error {
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }

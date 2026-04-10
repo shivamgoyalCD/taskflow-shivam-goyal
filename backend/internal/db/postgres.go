@@ -25,17 +25,12 @@ const (
 	defaultConnectTimeout   = 5 * time.Second
 	defaultMigrationTimeout = 30 * time.Second
 	seedUserID              = "11111111-1111-4111-8111-111111111111"
+	seedUserPasswordHash    = "$2a$12$ESSGnHrP0KolDLnep6AMs.cYzGQ63XgNyiZR2KnKrXPHA1seCTjAK"
 	seedProjectID           = "22222222-2222-4222-8222-222222222222"
 	seedTaskTodoID          = "33333333-3333-4333-8333-333333333331"
 	seedTaskInProgressID    = "33333333-3333-4333-8333-333333333332"
 	seedTaskDoneID          = "33333333-3333-4333-8333-333333333333"
 )
-
-type TableCounts struct {
-	Users    int64 `json:"users"`
-	Projects int64 `json:"projects"`
-	Tasks    int64 `json:"tasks"`
-}
 
 func Open(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(connectionString(cfg))
@@ -161,22 +156,6 @@ func RunSeed(ctx context.Context, logger *slog.Logger, pool *pgxpool.Pool) error
 	return nil
 }
 
-func CountCoreTables(ctx context.Context, pool *pgxpool.Pool) (TableCounts, error) {
-	var counts TableCounts
-
-	err := pool.QueryRow(ctx, `
-		SELECT
-			(SELECT COUNT(*) FROM users),
-			(SELECT COUNT(*) FROM projects),
-			(SELECT COUNT(*) FROM tasks)
-	`).Scan(&counts.Users, &counts.Projects, &counts.Tasks)
-	if err != nil {
-		return TableCounts{}, fmt.Errorf("count core tables: %w", err)
-	}
-
-	return counts, nil
-}
-
 func StartupContext(parent context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, defaultMigrationTimeout)
 }
@@ -285,6 +264,7 @@ func migrationSourceURL(path string) string {
 func seedAlreadyApplied(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
 	var (
 		userExists           bool
+		userPasswordHash     string
 		projectExists        bool
 		todoTaskExists       bool
 		inProgressTaskExists bool
@@ -294,12 +274,14 @@ func seedAlreadyApplied(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
 	err := pool.QueryRow(ctx, `
 		SELECT
 			EXISTS(SELECT 1 FROM users WHERE id = $1),
+			COALESCE((SELECT password FROM users WHERE id = $1), ''),
 			EXISTS(SELECT 1 FROM projects WHERE id = $2),
 			EXISTS(SELECT 1 FROM tasks WHERE id = $3),
 			EXISTS(SELECT 1 FROM tasks WHERE id = $4),
 			EXISTS(SELECT 1 FROM tasks WHERE id = $5)
 	`, seedUserID, seedProjectID, seedTaskTodoID, seedTaskInProgressID, seedTaskDoneID).Scan(
 		&userExists,
+		&userPasswordHash,
 		&projectExists,
 		&todoTaskExists,
 		&inProgressTaskExists,
@@ -309,7 +291,12 @@ func seedAlreadyApplied(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
 		return false, fmt.Errorf("query seed state: %w", err)
 	}
 
-	return userExists && projectExists && todoTaskExists && inProgressTaskExists && doneTaskExists, nil
+	return userExists &&
+		userPasswordHash == seedUserPasswordHash &&
+		projectExists &&
+		todoTaskExists &&
+		inProgressTaskExists &&
+		doneTaskExists, nil
 }
 
 type migrateLogger struct {

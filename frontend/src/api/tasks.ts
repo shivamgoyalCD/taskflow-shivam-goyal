@@ -73,5 +73,5 @@ export function updateTask(taskId: string, payload: UpdateTaskPayload) {
 }
 
 export function deleteTask(taskId: string) {
-  return apiClient.delete<{ message: string }>(`/tasks/${taskId}`);
+	return apiClient.delete<null>(`/tasks/${taskId}`);
 }
