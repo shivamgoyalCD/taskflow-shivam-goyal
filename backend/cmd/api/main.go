@@ -20,6 +20,7 @@ import (
 	appmiddleware "taskflow-shivam-goyal/backend/internal/middleware"
 	"taskflow-shivam-goyal/backend/internal/projects"
 	"taskflow-shivam-goyal/backend/internal/response"
+	"taskflow-shivam-goyal/backend/internal/tasks"
 )
 
 type application struct {
@@ -27,6 +28,7 @@ type application struct {
 	db              *pgxpool.Pool
 	authHandler     *auth.Handler
 	projectsHandler *projects.Handler
+	tasksHandler    *tasks.Handler
 	jwtManager      *auth.JWTManager
 }
 
@@ -72,12 +74,16 @@ func main() {
 	projectsRepository := projects.NewRepository(pool)
 	projectsService := projects.NewService(projectsRepository)
 	projectsHandler := projects.NewHandler(logger, projectsService)
+	tasksRepository := tasks.NewRepository(pool)
+	tasksService := tasks.NewService(tasksRepository)
+	tasksHandler := tasks.NewHandler(logger, tasksService)
 
 	app := &application{
 		logger:          logger,
 		db:              pool,
 		authHandler:     authHandler,
 		projectsHandler: projectsHandler,
+		tasksHandler:    tasksHandler,
 		jwtManager:      jwtManager,
 	}
 
@@ -162,6 +168,10 @@ func newRouter(app *application) http.Handler {
 		r.Get("/projects/{id}", app.projectsHandler.GetByID)
 		r.Patch("/projects/{id}", app.projectsHandler.Update)
 		r.Delete("/projects/{id}", app.projectsHandler.Delete)
+		r.Get("/projects/{id}/tasks", app.tasksHandler.ListByProject)
+		r.Post("/projects/{id}/tasks", app.tasksHandler.Create)
+		r.Patch("/tasks/{id}", app.tasksHandler.Update)
+		r.Delete("/tasks/{id}", app.tasksHandler.Delete)
 
 		// Temporary local debugging route. Remove before final submission.
 		r.Get("/debug/seed-check", app.handleSeedCheck)
