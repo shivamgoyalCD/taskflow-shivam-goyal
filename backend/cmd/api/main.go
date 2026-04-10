@@ -55,6 +55,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := db.RunSeed(startupCtx, logger, pool); err != nil {
+		logger.Error("db_seed_failed", "error", err)
+		os.Exit(1)
+	}
+
 	app := &application{
 		logger: logger,
 		db:     pool,
@@ -128,5 +133,23 @@ func newRouter(app *application) http.Handler {
 		}
 	})
 
+	// Temporary local debugging route. Remove before final submission.
+	router.Get("/debug/seed-check", app.handleSeedCheck)
+
 	return router
+}
+
+func (app *application) handleSeedCheck(w http.ResponseWriter, r *http.Request) {
+	counts, err := db.CountCoreTables(r.Context(), app.db)
+	if err != nil {
+		app.logger.Error("http_seed_check_failed", "error", err)
+		if writeErr := response.Error(w, http.StatusInternalServerError, "failed to fetch seed counts"); writeErr != nil {
+			app.logger.Error("http_seed_check_error_response_failed", "error", writeErr)
+		}
+		return
+	}
+
+	if err := response.JSON(w, http.StatusOK, counts); err != nil {
+		app.logger.Error("http_seed_check_response_failed", "error", err)
+	}
 }

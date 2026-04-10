@@ -2,6 +2,7 @@
 -- Apply this after running the initial migrations.
 -- Uses fixed UUIDs and explicit timestamps so local test data is predictable.
 -- The user password below is stored as a bcrypt hash, not as plaintext.
+-- Inserts are idempotent so this file is safe to execute multiple times.
 
 BEGIN;
 
@@ -18,7 +19,7 @@ INSERT INTO users (
     'test@example.com',
     '$2a$10$Uw0LDj343yp1tIpouRwHGeWflT3.QjDp9DeJ2XiwTIHf1T.pjEy0i',
     '2026-01-10 09:00:00'
-);
+) ON CONFLICT DO NOTHING;
 
 -- Seed project owned by the test user
 INSERT INTO projects (
@@ -33,7 +34,7 @@ INSERT INTO projects (
     'Predictable local project seed for development and API testing.',
     '11111111-1111-4111-8111-111111111111',
     '2026-01-10 09:05:00'
-);
+) ON CONFLICT DO NOTHING;
 
 -- Seed tasks covering each supported status value
 INSERT INTO tasks (
@@ -87,6 +88,6 @@ INSERT INTO tasks (
     '2026-01-12',
     '2026-01-10 09:30:00',
     '2026-01-12 17:30:00'
-);
+) ON CONFLICT DO NOTHING;
 
 COMMIT;
