@@ -39,6 +39,7 @@ type healthResponse struct {
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger.Info("application_starting")
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -49,22 +50,32 @@ func main() {
 	startupCtx, cancelStartup := db.StartupContext(context.Background())
 	defer cancelStartup()
 
+	logger.Info(
+		"db_connect_starting",
+		"host", cfg.Postgres.Host,
+		"port", cfg.Postgres.Port,
+		"database", cfg.Postgres.Database,
+	)
+
 	pool, err := db.Open(startupCtx, cfg.Postgres)
 	if err != nil {
 		logger.Error("db_connect_failed", "error", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
 
 	logger.Info("db_connected")
 
 	if err := db.RunMigrations(startupCtx, logger, cfg.Postgres, pool); err != nil {
 		logger.Error("db_migrations_failed", "error", err)
+		closeDBPool(logger, pool)
 		os.Exit(1)
 	}
 
+	logger.Info("db_seed_starting")
+
 	if err := db.RunSeed(startupCtx, logger, pool); err != nil {
 		logger.Error("db_seed_failed", "error", err)
+		closeDBPool(logger, pool)
 		os.Exit(1)
 	}
 
@@ -110,26 +121,33 @@ func main() {
 		}
 	}()
 
-	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	shutdownSignals := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(shutdownSignals)
 
 	select {
 	case err := <-serverErrors:
 		logger.Error("http_server_failed", "error", err)
+		closeDBPool(logger, pool)
 		os.Exit(1)
-	case <-stopCtx.Done():
-		logger.Info("http_server_shutdown_requested")
+	case sig := <-shutdownSignals:
+		logger.Info("shutdown_requested", "signal", sig.String())
 	}
+
+	logger.Info("http_server_shutdown_starting")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("http_server_shutdown_failed", "error", err)
+		closeDBPool(logger, pool)
 		os.Exit(1)
 	}
 
 	logger.Info("http_server_stopped")
+	closeDBPool(logger, pool)
+	logger.Info("application_stopped")
 }
 
 func newRouter(app *application) http.Handler {
@@ -197,4 +215,14 @@ func (app *application) handleSeedCheck(w http.ResponseWriter, r *http.Request) 
 	if err := response.OK(w, counts); err != nil {
 		app.logger.Error("http_seed_check_response_failed", "error", err)
 	}
+}
+
+func closeDBPool(logger *slog.Logger, pool *pgxpool.Pool) {
+	if pool == nil {
+		return
+	}
+
+	logger.Info("db_pool_closing")
+	pool.Close()
+	logger.Info("db_pool_closed")
 }

@@ -8,7 +8,6 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
-// RequestLogger is a small structured logging placeholder until a fuller observability stack is added.
 func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,15 +21,25 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				status = http.StatusOK
 			}
 
-			logger.Info(
+			level := slog.LevelInfo
+			switch {
+			case status >= http.StatusInternalServerError:
+				level = slog.LevelError
+			case status >= http.StatusBadRequest:
+				level = slog.LevelWarn
+			}
+
+			logger.LogAttrs(
+				r.Context(),
+				level,
 				"http_request_completed",
-				"request_id", chimiddleware.GetReqID(r.Context()),
-				"method", r.Method,
-				"path", r.URL.Path,
-				"status", status,
-				"bytes_written", ww.BytesWritten(),
-				"duration", time.Since(startedAt).String(),
-				"remote_addr", r.RemoteAddr,
+				slog.String("request_id", chimiddleware.GetReqID(r.Context())),
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+				slog.Int("status", status),
+				slog.Duration("duration", time.Since(startedAt)),
+				slog.Int("bytes_written", ww.BytesWritten()),
+				slog.String("remote_addr", r.RemoteAddr),
 			)
 		})
 	}
