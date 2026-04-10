@@ -366,6 +366,40 @@ func TestIntegrationCreateAndUpdateTaskFlow(t *testing.T) {
 	}
 }
 
+func TestIntegrationRegisterPreflightCORS(t *testing.T) {
+	suite := requireSuite(t)
+	suite.ResetDatabase(t)
+
+	request, err := http.NewRequest(http.MethodOptions, suite.server.URL+"/auth/register", nil)
+	if err != nil {
+		t.Fatalf("create CORS preflight request: %v", err)
+	}
+
+	request.Header.Set("Origin", "http://localhost:5173")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	request.Header.Set("Access-Control-Request-Headers", "content-type")
+
+	response, err := suite.httpClient.Do(request)
+	if err != nil {
+		t.Fatalf("execute CORS preflight request: %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected preflight status %d, got %d", http.StatusNoContent, response.StatusCode)
+	}
+
+	if got := response.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
+		t.Fatalf("expected Access-Control-Allow-Origin header to echo dev origin, got %q", got)
+	}
+	if got := response.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPost) {
+		t.Fatalf("expected Access-Control-Allow-Methods to include POST, got %q", got)
+	}
+	if got := response.Header.Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(got), "content-type") {
+		t.Fatalf("expected Access-Control-Allow-Headers to include Content-Type, got %q", got)
+	}
+}
+
 func newTestSuite() (*testSuite, error) {
 	baseConfig, err := integrationPostgresConfig()
 	if err != nil {

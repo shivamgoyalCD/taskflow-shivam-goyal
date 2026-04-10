@@ -153,6 +153,7 @@ func main() {
 func newRouter(app *application) http.Handler {
 	router := chi.NewRouter()
 
+	router.Use(appmiddleware.CORS())
 	router.Use(chimiddleware.RequestID)
 	router.Use(appmiddleware.RequestLogger(app.logger))
 	router.Use(appmiddleware.Recoverer(app.logger))
