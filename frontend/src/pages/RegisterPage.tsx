@@ -52,7 +52,6 @@ export function RegisterPage() {
       submitLabel="Register"
       schema={registerSchema}
       onSubmit={handleRegister}
-      helperMessage="Create an account against the backend API. On success, the session is stored locally and you are redirected into the app."
       apiError={apiError}
       serverFieldErrors={serverFieldErrors}
       submitInProgress={registerMutation.isPending}

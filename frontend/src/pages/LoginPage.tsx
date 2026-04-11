@@ -51,7 +51,6 @@ export function LoginPage() {
       submitLabel="Login"
       schema={loginSchema}
       onSubmit={handleLogin}
-      helperMessage="Sign in with your backend account. Successful login stores the token and user session locally."
       apiError={apiError}
       serverFieldErrors={serverFieldErrors}
       submitInProgress={loginMutation.isPending}

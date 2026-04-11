@@ -21,8 +21,11 @@ import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import FolderOpenRoundedIcon from "@mui/icons-material/FolderOpenRounded";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
+import { listUsers } from "@/api/users";
 import { EmptyStatePanel } from "@/components/EmptyStatePanel";
+import { useAuth } from "@/features/auth/AuthContext";
 import { CreateProjectDialog } from "@/features/projects/CreateProjectDialog";
 import { useProjectsQuery } from "@/features/projects/useProjects";
 
@@ -30,12 +33,30 @@ const pageSizeOptions = [6, 12, 18] as const;
 
 export function ProjectsPage() {
   const theme = useTheme();
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(pageSizeOptions[0]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const projectsQuery = useProjectsQuery(page, limit);
   const projects = projectsQuery.data?.projects ?? [];
+
+  const usersQuery = useQuery({
+    queryKey: ["users"],
+    queryFn: listUsers,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const ownerNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (user) {
+      map.set(user.id, user.name);
+    }
+    for (const u of usersQuery.data?.users ?? []) {
+      map.set(u.id, u.name);
+    }
+    return map;
+  }, [user, usersQuery.data?.users]);
   const hasProjects = projects.length > 0;
   const canGoToPreviousPage = page > 1;
   const canGoToNextPage = hasProjects && projects.length >= limit;
@@ -214,8 +235,7 @@ export function ProjectsPage() {
                     </Typography>
 
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                      <Chip variant="outlined" label={`Owner ${project.owner_id.slice(0, 8)}...`} />
-                      <Chip variant="outlined" label={`ID ${project.id.slice(0, 8)}...`} />
+                      <Chip variant="outlined" label={`Owner: ${ownerNameMap.get(project.owner_id) ?? "Unknown"}`} />
                     </Stack>
                   </Stack>
                 </CardContent>

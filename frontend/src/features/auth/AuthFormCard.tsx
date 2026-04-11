@@ -32,7 +32,6 @@ type AuthFormCardProps<TValues extends FieldValues> = {
   fields: Array<FieldConfig<Extract<keyof TValues, string>>>;
   schema: ZodType<TValues>;
   onSubmit: (values: TValues) => Promise<void> | void;
-  helperMessage?: string;
   apiError?: string | null;
   submitInProgress?: boolean;
   serverFieldErrors?: Partial<Record<Extract<keyof TValues, string>, string>>;
@@ -45,7 +44,6 @@ export function AuthFormCard<TValues extends FieldValues>({
   fields,
   schema,
   onSubmit,
-  helperMessage,
   apiError,
   submitInProgress = false,
   serverFieldErrors,
@@ -94,11 +92,6 @@ export function AuthFormCard<TValues extends FieldValues>({
             </Typography>
             <Typography color="text.secondary">{description}</Typography>
           </Box>
-
-          <Alert severity="info">
-            {helperMessage ??
-              "Complete the form and submit to continue."}
-          </Alert>
 
           {apiError ? <Alert severity="error">{apiError}</Alert> : null}
 
