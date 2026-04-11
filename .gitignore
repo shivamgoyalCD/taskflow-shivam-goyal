@@ -1,3 +1,6 @@
+# Temporary / debug artifacts
+.tmp-*
+
 # Environment
 .env
 .env.*
@@ -21,6 +24,7 @@ Desktop.ini
 # Editors and tooling
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 .eslintcache
