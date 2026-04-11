@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(git ls-files:*)"
+      "Bash(git ls-files:*)",
+      "Bash(git -C /c/Users/goyal/Desktop/zomato-project/taskflow-shivam-goyal status)"
     ]
   }
 }

@@ -4,6 +4,17 @@ A full-stack task management system with authentication, relational data, real-t
 
 Built by **Shivam Goyal** for the engineering take-home assignment.
 
+### About the Author
+
+| | |
+|---|---|
+| **Name** | Shivam Goyal |
+| **Phone** | +91-9916988674 |
+| **Email** | shivamgoyal0723@gmail.com |
+| **LinkedIn** | [linkedin.com/in/shivamgoyal29](https://www.linkedin.com/in/shivamgoyal29/) |
+| **GitHub** | [github.com/shivamgoyalCD](https://github.com/shivamgoyalCD) |
+| **Resume** | [View Resume (PDF)](./shivam_goyal_resume.pdf) |
+
 ---
 
 ## Table of Contents
@@ -435,7 +446,7 @@ Events published: `task_created`, `task_updated`, `task_deleted`. Each event is 
 **Prerequisites:** Docker Desktop with Compose support.
 
 ```bash
-git clone https://github.com/shivam-goyal/taskflow-shivam-goyal
+git clone https://github.com/shivamgoyalCD/taskflow-shivam-goyal
 cd taskflow-shivam-goyal
 cp .env.example .env
 docker compose up --build
